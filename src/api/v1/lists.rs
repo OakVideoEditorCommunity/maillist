@@ -503,26 +503,130 @@ async fn download_attachment(
 }
 
 async fn list_threads(
-    State(_state): State<AppState>,
-    Path(_id): Path<String>,
-    Query(_params): Query<HashMap<String, String>>,
-) -> ApiResult<Vec<serde_json::Value>> {
-    todo!()
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Query(params): Query<HashMap<String, String>>,
+) -> ApiResult<serde_json::Value> {
+    use sea_orm::{ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder};
+
+    let list_uuid = uuid::Uuid::parse_str(&id).map_err(|e| ApiError {
+        code: "VALIDATION_ERROR".to_string(),
+        message: e.to_string(),
+        details: None,
+        request_id: None,
+    })?;
+
+    let page: u64 = params.get("page").and_then(|v| v.parse().ok()).unwrap_or(1);
+    let per_page: u64 = params.get("per_page").and_then(|v| v.parse().ok()).unwrap_or(20).min(100);
+
+    let threads = crate::models::email_message::Entity::find()
+        .filter(crate::models::email_message::Column::ListId.eq(list_uuid))
+        .filter(crate::models::email_message::Column::IsDeleted.eq(false))
+        .filter(crate::models::email_message::Column::ThreadId.is_not_null())
+        .order_by_desc(crate::models::email_message::Column::ReceivedAt)
+        .paginate(&state.db, per_page);
+
+    let messages: Vec<crate::models::email_message::Model> = threads.fetch_page(page - 1).await.map_err(|e| ApiError {
+        code: "INTERNAL_ERROR".to_string(),
+        message: e.to_string(),
+        details: None,
+        request_id: None,
+    })?;
+
+    let items: Vec<_> = messages.into_iter().map(|m| {
+        serde_json::json!({
+            "thread_id": m.thread_id,
+            "latest_subject": m.subject,
+            "latest_from": m.from_addr,
+            "latest_received_at": m.received_at,
+        })
+    }).collect();
+
+    Ok(Json(ApiResponse::with_meta(
+        serde_json::json!({ "items": items }),
+        serde_json::json!({ "page": page, "per_page": per_page }),
+    )))
 }
 
 async fn get_thread(
-    State(_state): State<AppState>,
-    Path((_id, _thread_id)): Path<(String, String)>,
+    State(state): State<AppState>,
+    Path((_id, thread_id)): Path<(String, String)>,
 ) -> ApiResult<Vec<serde_json::Value>> {
-    todo!()
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder};
+
+    let thread_uuid = uuid::Uuid::parse_str(&thread_id).map_err(|e| ApiError {
+        code: "VALIDATION_ERROR".to_string(),
+        message: e.to_string(),
+        details: None,
+        request_id: None,
+    })?;
+
+    let messages = crate::models::email_message::Entity::find()
+        .filter(crate::models::email_message::Column::ThreadId.eq(Some(thread_uuid)))
+        .filter(crate::models::email_message::Column::IsDeleted.eq(false))
+        .order_by_asc(crate::models::email_message::Column::ReceivedAt)
+        .all(&state.db)
+        .await
+        .map_err(|e| ApiError {
+            code: "INTERNAL_ERROR".to_string(),
+            message: e.to_string(),
+            details: None,
+            request_id: None,
+        })?;
+
+    let items: Vec<_> = messages.into_iter().map(|m| {
+        serde_json::json!({
+            "id": m.id,
+            "message_id": m.message_id,
+            "from_addr": m.from_addr,
+            "from_name": m.from_name,
+            "subject": m.subject,
+            "body_text": m.body_text,
+            "received_at": m.received_at,
+        })
+    }).collect();
+
+    Ok(Json(ApiResponse::new(items)))
 }
 
 async fn search_archive(
-    State(_state): State<AppState>,
-    Path(_id): Path<String>,
-    Query(_params): Query<HashMap<String, String>>,
-) -> ApiResult<Vec<serde_json::Value>> {
-    todo!()
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Query(params): Query<HashMap<String, String>>,
+) -> ApiResult<serde_json::Value> {
+    let list_uuid = uuid::Uuid::parse_str(&id).map_err(|e| ApiError {
+        code: "VALIDATION_ERROR".to_string(),
+        message: e.to_string(),
+        details: None,
+        request_id: None,
+    })?;
+
+    let keyword = params.get("q").cloned().unwrap_or_default();
+    let from = params.get("from").map(|s| s.as_str());
+
+    let service = crate::services::archive_service::ArchiveService::new(state.db.clone());
+    let results = service.search(&id, &keyword, from).await.map_err(|e| ApiError {
+        code: "INTERNAL_ERROR".to_string(),
+        message: e.to_string(),
+        details: None,
+        request_id: None,
+    })?;
+
+    let items: Vec<_> = results.into_iter().map(|m| {
+        serde_json::json!({
+            "id": m.id,
+            "message_id": m.message_id,
+            "from_addr": m.from_addr,
+            "subject": m.subject,
+            "received_at": m.received_at,
+        })
+    }).collect();
+
+    Ok(Json(ApiResponse::new(serde_json::json!({
+        "list_id": list_uuid,
+        "keyword": keyword,
+        "items": items,
+    }))))
 }
 
 async fn list_moderation_queue(

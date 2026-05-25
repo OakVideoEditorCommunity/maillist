@@ -5,7 +5,7 @@ use sea_orm::Database;
 use migration::MigratorTrait;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
-use tracing::{info, Level};
+use tracing::{error, info, Level};
 use tracing_subscriber::FmtSubscriber;
 
 #[tokio::main]
@@ -24,11 +24,24 @@ async fn main() -> Result<()> {
     info!("Database migrations applied");
 
     let app_state = models::AppState { db: db.clone(), config: config.clone() };
-    let app = create_router(app_state);
+    let app = create_router(app_state.clone());
 
     let addr: SocketAddr = format!("{}:{}", config.server.host, config.server.port).parse()?;
     let listener = TcpListener::bind(addr).await?;
     info!("HTTP server listening on http://{}", addr);
+
+    if config.smtp.incoming.enabled {
+        let smtp_server = oak_maillist::smtp::server::SmtpServer::new(
+            config.smtp.incoming.host.clone(),
+            config.smtp.incoming.port,
+            app_state.clone(),
+        );
+        tokio::spawn(async move {
+            if let Err(e) = smtp_server.run().await {
+                error!("SMTP server error: {}", e);
+            }
+        });
+    }
 
     serve(listener, app).await?;
 
