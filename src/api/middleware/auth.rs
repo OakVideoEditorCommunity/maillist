@@ -2,11 +2,11 @@ use axum::{
     extract::{Request, State},
     http::StatusCode,
     middleware::Next,
-    response::Response,
+    response::{IntoResponse, Response},
 };
-use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm};
 use serde::{Deserialize, Serialize};
 use crate::models::AppState;
+use crate::services::auth_service::AuthService;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
@@ -33,12 +33,9 @@ pub async fn require_auth(
         None => return Err(StatusCode::UNAUTHORIZED),
     };
 
-    let claims = match decode::<Claims>(
-        token,
-        &DecodingKey::from_secret(state.config.security.jwt_secret.as_bytes()),
-        &Validation::new(Algorithm::HS256),
-    ) {
-        Ok(token_data) => token_data.claims,
+    let service = AuthService::new(state.db.clone(), state.config.clone());
+    let claims = match service.verify_access_token(token) {
+        Ok(claims) => claims,
         Err(_) => return Err(StatusCode::UNAUTHORIZED),
     };
 
@@ -46,11 +43,38 @@ pub async fn require_auth(
     Ok(next.run(request).await)
 }
 
-pub async fn optional_auth(
+pub async fn require_admin(
     State(_state): State<AppState>,
+    request: Request,
+    next: Next,
+) -> Result<Response, StatusCode> {
+    let claims = request.extensions().get::<Claims>().cloned();
+
+    match claims {
+        Some(claims) if claims.role == "site_admin" => Ok(next.run(request).await),
+        _ => Err(StatusCode::FORBIDDEN),
+    }
+}
+
+pub async fn optional_auth(
+    State(state): State<AppState>,
     mut request: Request,
     next: Next,
 ) -> Response {
-    request.extensions_mut().insert(());
+    let auth_header = request
+        .headers()
+        .get("authorization")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.strip_prefix("Bearer "));
+
+    if let Some(token) = auth_header {
+        let service = AuthService::new(state.db.clone(), state.config.clone());
+        if let Ok(claims) = service.verify_access_token(token) {
+            request.extensions_mut().insert(claims);
+        }
+    }
+
     next.run(request).await
 }
+
+

@@ -28,6 +28,10 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(EmailMessage::HasAttachments).boolean().not_null().default(false))
                     .col(ColumnDef::new(EmailMessage::ReceivedAt).timestamp_with_time_zone().not_null())
                     .col(ColumnDef::new(EmailMessage::ThreadId).uuid())
+                    .col(ColumnDef::new(EmailMessage::IsDeleted).boolean().not_null().default(false))
+                    .col(ColumnDef::new(EmailMessage::DeletedAt).timestamp_with_time_zone())
+                    .col(ColumnDef::new(EmailMessage::DeletedBy).uuid())
+                    .col(ColumnDef::new(EmailMessage::DeletedReason).text())
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_email_message_list")
@@ -68,6 +72,10 @@ enum EmailMessage {
     HasAttachments,
     ReceivedAt,
     ThreadId,
+    IsDeleted,
+    DeletedAt,
+    DeletedBy,
+    DeletedReason,
 }
 
 #[derive(DeriveIden)]

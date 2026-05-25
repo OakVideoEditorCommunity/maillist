@@ -22,6 +22,10 @@ pub struct Model {
     pub has_attachments: bool,
     pub received_at: DateTimeWithTimeZone,
     pub thread_id: Option<Uuid>,
+    pub is_deleted: bool,
+    pub deleted_at: Option<DateTimeWithTimeZone>,
+    pub deleted_by: Option<Uuid>,
+    pub deleted_reason: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

@@ -31,14 +31,16 @@ from_address = "noreply@example.com"
 
 [ai_moderation]
 enabled = true
-provider = "openai"
-api_key = ""
-api_base = "https://api.openai.com/v1"
-model = "gpt-4o"
+provider = "aliyun"
+access_key_id = ""
+access_key_secret = ""
+region = "cn-shanghai"
+service = "comment_multilingual_pro_cb"
+endpoint = "https://green-cip.cn-shanghai.aliyuncs.com"
 high_risk_threshold = 80
 medium_risk_threshold = 50
 request_timeout_seconds = 30
-max_text_length = 8000
+max_text_length = 600
 
 [archive]
 enabled = true

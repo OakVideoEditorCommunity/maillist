@@ -1,7 +1,9 @@
+use crate::api::middleware::auth::Claims;
 use crate::models::AppState;
+use crate::services::moderation_service::ModerationService;
 use crate::utils::response::{ApiError, ApiResponse, ApiResult};
 use axum::{
-    extract::{Path, State},
+    extract::{Extension, Path, State},
     routing::{get, post},
     Json, Router,
 };
@@ -25,38 +27,110 @@ async fn get_moderation_item(
 }
 
 async fn approve(
-    State(_state): State<AppState>,
-    Path(_id): Path<String>,
+    Extension(claims): Extension<Claims>,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
 ) -> ApiResult<serde_json::Value> {
-    todo!()
+    let service = ModerationService::new(state.db.clone());
+    service
+        .approve(&id, Some(&claims.sub))
+        .await
+        .map_err(|e| ApiError {
+            code: "INTERNAL_ERROR".to_string(),
+            message: e.to_string(),
+            details: None,
+            request_id: None,
+        })?;
+
+    Ok(Json(ApiResponse::new(serde_json::json!({
+        "message": "Approved successfully"
+    }))))
 }
 
 async fn reject(
-    State(_state): State<AppState>,
-    Path(_id): Path<String>,
+    Extension(claims): Extension<Claims>,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(req): Json<serde_json::Value>,
 ) -> ApiResult<serde_json::Value> {
-    todo!()
+    let service = ModerationService::new(state.db.clone());
+    let note = req.get("note").and_then(|v| v.as_str());
+    service
+        .reject(&id, Some(&claims.sub), note)
+        .await
+        .map_err(|e| ApiError {
+            code: "INTERNAL_ERROR".to_string(),
+            message: e.to_string(),
+            details: None,
+            request_id: None,
+        })?;
+
+    Ok(Json(ApiResponse::new(serde_json::json!({
+        "message": "Rejected successfully"
+    }))))
 }
 
 async fn discard(
-    State(_state): State<AppState>,
-    Path(_id): Path<String>,
+    Extension(claims): Extension<Claims>,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
 ) -> ApiResult<serde_json::Value> {
-    todo!()
+    let service = ModerationService::new(state.db.clone());
+    service
+        .discard(&id, Some(&claims.sub))
+        .await
+        .map_err(|e| ApiError {
+            code: "INTERNAL_ERROR".to_string(),
+            message: e.to_string(),
+            details: None,
+            request_id: None,
+        })?;
+
+    Ok(Json(ApiResponse::new(serde_json::json!({
+        "message": "Discarded successfully"
+    }))))
 }
 
 async fn whitelist_sender(
-    State(_state): State<AppState>,
-    Path(_id): Path<String>,
+    Extension(claims): Extension<Claims>,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
 ) -> ApiResult<serde_json::Value> {
-    todo!()
+    let service = ModerationService::new(state.db.clone());
+    service
+        .whitelist_sender(&id, Some(&claims.sub))
+        .await
+        .map_err(|e| ApiError {
+            code: "INTERNAL_ERROR".to_string(),
+            message: e.to_string(),
+            details: None,
+            request_id: None,
+        })?;
+
+    Ok(Json(ApiResponse::new(serde_json::json!({
+        "message": "Approved and sender whitelisted"
+    }))))
 }
 
 async fn blacklist_sender(
-    State(_state): State<AppState>,
-    Path(_id): Path<String>,
+    Extension(claims): Extension<Claims>,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
 ) -> ApiResult<serde_json::Value> {
-    todo!()
+    let service = ModerationService::new(state.db.clone());
+    service
+        .blacklist_sender(&id, Some(&claims.sub))
+        .await
+        .map_err(|e| ApiError {
+            code: "INTERNAL_ERROR".to_string(),
+            message: e.to_string(),
+            details: None,
+            request_id: None,
+        })?;
+
+    Ok(Json(ApiResponse::new(serde_json::json!({
+        "message": "Rejected and sender blacklisted"
+    }))))
 }
 
 async fn ai_feedback(
