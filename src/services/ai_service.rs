@@ -12,6 +12,8 @@ pub struct AiModerationResult {
     pub verdict: String,
     pub categories: serde_json::Value,
     pub flagged_categories: Vec<String>,
+    pub llm_raw_output: Option<String>,
+    pub risk_level: String,
 }
 
 impl AiService {

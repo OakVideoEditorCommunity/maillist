@@ -8,5 +8,7 @@ pub fn parse_ai_response(_content: &str) -> anyhow::Result<AiModerationResult> {
         verdict: "clean".to_string(),
         categories: serde_json::json!({}),
         flagged_categories: vec![],
+        llm_raw_output: None,
+        risk_level: "none".to_string(),
     })
 }

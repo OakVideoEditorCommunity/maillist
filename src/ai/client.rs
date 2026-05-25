@@ -40,10 +40,24 @@ struct AliyunData {
     result: Vec<AliyunResultItem>,
     #[serde(rename = "DataId")]
     data_id: Option<String>,
-    #[serde(rename = "DetectedLanguage")]
-    detected_language: Option<String>,
+    #[serde(rename = "AccountId")]
+    account_id: Option<String>,
     #[serde(rename = "TranslatedContent")]
     translated_content: Option<String>,
+    #[serde(rename = "Ext")]
+    ext: Option<AliyunExt>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AliyunExt {
+    #[serde(rename = "LlmContent")]
+    llm_content: Option<AliyunLlmContent>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AliyunLlmContent {
+    #[serde(rename = "OutputText")]
+    output_text: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -92,6 +106,8 @@ impl AiClient {
                 verdict: "clean".to_string(),
                 categories: json!({}),
                 flagged_categories: vec![],
+                llm_raw_output: None,
+                risk_level: "none".to_string(),
             });
         }
 
@@ -190,11 +206,19 @@ impl AiClient {
             _ => "clean",
         };
 
+        let llm_raw_output = data
+            .ext
+            .as_ref()
+            .and_then(|e| e.llm_content.as_ref())
+            .map(|l| l.output_text.clone());
+
         Ok(crate::services::ai_service::AiModerationResult {
             overall_score: max_confidence as i32,
             verdict: verdict.to_string(),
             categories: serde_json::Value::Object(categories),
             flagged_categories: flagged,
+            llm_raw_output,
+            risk_level: data.risk_level,
         })
     }
 }

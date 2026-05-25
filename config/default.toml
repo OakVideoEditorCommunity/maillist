@@ -35,12 +35,12 @@ provider = "aliyun"
 access_key_id = ""
 access_key_secret = ""
 region = "cn-shanghai"
-service = "comment_multilingual_pro_cb"
+service = "ugc_moderation_byllm"
 endpoint = "https://green-cip.cn-shanghai.aliyuncs.com"
 high_risk_threshold = 80
 medium_risk_threshold = 50
 request_timeout_seconds = 30
-max_text_length = 600
+max_text_length = 2000
 
 [archive]
 enabled = true
