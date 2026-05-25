@@ -1,0 +1,50 @@
+[server]
+host = "0.0.0.0"
+port = 3000
+
+[database]
+# mysql or postgres
+url = "postgres://postgres:postgres@localhost:5432/oak_maillist"
+max_connections = 10
+min_connections = 2
+connect_timeout = 10
+idle_timeout = 300
+
+[security]
+jwt_secret = "change-me-in-production"
+jwt_expiration_seconds = 900
+refresh_token_expiration_days = 7
+session_token_expiration_seconds = 600
+password_min_length = 8
+
+[smtp.incoming]
+enabled = true
+host = "0.0.0.0"
+port = 2525
+
+[smtp.outgoing]
+host = "localhost"
+port = 587
+username = ""
+password = ""
+from_address = "noreply@example.com"
+
+[ai_moderation]
+enabled = true
+provider = "openai"
+api_key = ""
+api_base = "https://api.openai.com/v1"
+model = "gpt-4o"
+high_risk_threshold = 80
+medium_risk_threshold = 50
+request_timeout_seconds = 30
+max_text_length = 8000
+
+[archive]
+enabled = true
+storage_path = "./storage/archives"
+max_attachment_size_mb = 10
+
+[logging]
+level = "info"
+format = "pretty"
