@@ -1,4 +1,3 @@
-
 pub struct AuthCheckResult {
     pub spf_result: SpfResult,
     pub dkim_result: DkimResult,

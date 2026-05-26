@@ -412,7 +412,6 @@ async fn list_subscribers(
     Path(id): Path<String>,
     Query(params): Query<HashMap<String, String>>,
 ) -> ApiResult<serde_json::Value> {
-    
     let svc = crate::services::subscriber_service::SubscriberService::new(state.db.clone());
     let page: u64 = params.get("page").and_then(|v| v.parse().ok()).unwrap_or(1);
     let per_page: u64 = params

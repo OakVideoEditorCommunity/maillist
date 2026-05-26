@@ -1,9 +1,7 @@
 use crate::models::{AppState, email_message, subscriber};
 use chrono::{Duration, Utc};
 use lettre::Transport;
-use sea_orm::{
-    ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder,
-};
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder};
 use tracing::{error, info};
 
 pub struct DigestTask {

@@ -18,7 +18,11 @@ impl MailPipeline {
     pub fn new(state: AppState) -> Self {
         let db = state.db.clone();
         let config = state.config.clone();
-        Self { _state: state, db, config }
+        Self {
+            _state: state,
+            db,
+            config,
+        }
     }
 
     pub async fn process(
