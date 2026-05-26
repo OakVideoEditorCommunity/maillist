@@ -31,6 +31,25 @@ impl AuthService {
         password: &str,
         name: Option<&str>,
     ) -> anyhow::Result<user::Model> {
+        self._register_internal(email, password, name, false).await
+    }
+
+    pub async fn register_admin(
+        &self,
+        email: &str,
+        password: &str,
+        name: Option<&str>,
+    ) -> anyhow::Result<user::Model> {
+        self._register_internal(email, password, name, true).await
+    }
+
+    async fn _register_internal(
+        &self,
+        email: &str,
+        password: &str,
+        name: Option<&str>,
+        is_admin: bool,
+    ) -> anyhow::Result<user::Model> {
         let password_hash = hash_password(password)?;
 
         let new_user = user::ActiveModel {
@@ -41,7 +60,7 @@ impl AuthService {
             avatar_url: Set(None),
             timezone: Set("Asia/Shanghai".to_string()),
             language: Set("zh-CN".to_string()),
-            is_site_admin: Set(false),
+            is_site_admin: Set(is_admin),
             is_active: Set(true),
             mfa_enabled: Set(false),
             last_login_at: Set(None),

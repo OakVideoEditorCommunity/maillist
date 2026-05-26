@@ -2,7 +2,7 @@ use anyhow::Result;
 use axum::serve;
 use migration::MigratorTrait;
 use oak_maillist::{api::create_router, config::AppConfig, models};
-use sea_orm::Database;
+use sea_orm::{Database, EntityTrait, PaginatorTrait};
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use tracing::{Level, error, info};
@@ -30,6 +30,8 @@ async fn main() -> Result<()> {
 
     migration::Migrator::up(&db, None).await?;
     info!("Database migrations applied");
+
+    init_admin_from_env(&db, &config).await;
 
     let app_state = models::AppState::new(db.clone(), config.clone());
     let app = create_router(app_state.clone());
@@ -66,6 +68,42 @@ async fn main() -> Result<()> {
     serve(listener, app).await?;
 
     Ok(())
+}
+
+async fn init_admin_from_env(
+    db: &sea_orm::DatabaseConnection,
+    config: &oak_maillist::config::AppConfig,
+) {
+    let admin_email = std::env::var("OAK_INIT_ADMIN_EMAIL").ok();
+    let admin_password = std::env::var("OAK_INIT_ADMIN_PASSWORD").ok();
+
+    if let (Some(email), Some(password)) = (admin_email, admin_password) {
+        let count = oak_maillist::models::user::Entity::find()
+            .count(db)
+            .await
+            .unwrap_or(0);
+
+        if count == 0 {
+            let auth_svc =
+                oak_maillist::services::auth_service::AuthService::new(db.clone(), config.clone());
+            match auth_svc
+                .register_admin(&email, &password, Some("Administrator"))
+                .await
+            {
+                Ok(user) => {
+                    info!(
+                        "Admin account created from environment: {} ({})",
+                        user.email, user.id
+                    );
+                }
+                Err(e) => {
+                    error!("Failed to create admin from environment: {}", e);
+                }
+            }
+        } else {
+            info!("Users already exist, skipping env-init admin creation");
+        }
+    }
 }
 
 fn init_tracing(logging: &oak_maillist::config::LoggingConfig) {

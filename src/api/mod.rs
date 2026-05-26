@@ -24,6 +24,7 @@ pub fn create_router(state: AppState) -> Router {
 
     let public_routes = Router::new()
         .nest("/auth", auth_routes)
+        .nest("/setup", v1::setup::routes())
         .route("/health", get(v1::health::health_check))
         .route("/health/ready", get(v1::health::readiness_check))
         .route("/health/live", get(v1::health::liveness_check))

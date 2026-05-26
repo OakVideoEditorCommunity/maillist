@@ -5,6 +5,7 @@ pub mod health;
 pub mod lists;
 pub mod messages;
 pub mod moderation;
+pub mod setup;
 pub mod subscribers;
 pub mod templates;
 pub mod users;
