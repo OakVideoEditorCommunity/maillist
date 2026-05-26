@@ -1,9 +1,13 @@
-use oak_maillist::smtp::auth_check::{AuthChecker, AuthCheckResult, DkimResult, DmarcResult, SpfResult};
+use oak_maillist::smtp::auth_check::{
+    AuthCheckResult, AuthChecker, DkimResult, DmarcResult, SpfResult,
+};
 
 #[tokio::test]
 async fn test_auth_checker_check_returns_none() {
     let checker = AuthChecker::new();
-    let result = checker.check("192.168.1.1", "example.com", "from@example.com").await;
+    let result = checker
+        .check("192.168.1.1", "example.com", "from@example.com")
+        .await;
     assert!(matches!(result.spf_result, SpfResult::None));
     assert!(matches!(result.dkim_result, DkimResult::None));
     assert!(matches!(result.dmarc_result, DmarcResult::None));

@@ -1,9 +1,9 @@
 use chrono::Utc;
+use migration::MigratorTrait;
 use oak_maillist::config::AppConfig;
 use oak_maillist::models::AppState;
 use oak_maillist::smtp::processor::MailPipeline;
 use oak_maillist::smtp::server::IncomingEmail;
-use migration::MigratorTrait;
 use sea_orm::{ActiveModelTrait, ConnectionTrait, Database, EntityTrait, Set};
 
 async fn setup_db() -> AppState {

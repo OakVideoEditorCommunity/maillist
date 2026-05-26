@@ -1,8 +1,8 @@
 use chrono::Utc;
+use migration::MigratorTrait;
 use oak_maillist::config::AppConfig;
 use oak_maillist::models::AppState;
 use oak_maillist::services::notification_service::NotificationService;
-use migration::MigratorTrait;
 use sea_orm::{ActiveModelTrait, ConnectionTrait, Database, Set};
 
 async fn setup_db() -> AppState {
@@ -79,10 +79,7 @@ fn list_model(domain_id: uuid::Uuid, name: &str) -> oak_maillist::models::mailin
 #[tokio::test]
 async fn test_send_subscription_confirm() {
     let state = setup_db().await;
-    let svc = NotificationService::new(
-        state.db.clone(),
-        state.config.smtp.outgoing.clone(),
-    );
+    let svc = NotificationService::new(state.db.clone(), state.config.smtp.outgoing.clone());
 
     let sub = subscriber_model(uuid::Uuid::new_v4(), "sub@example.com");
     let list = list_model(uuid::Uuid::new_v4(), "Test List");
@@ -100,10 +97,7 @@ async fn test_send_subscription_confirm() {
 #[tokio::test]
 async fn test_send_unsubscribe_confirm() {
     let state = setup_db().await;
-    let svc = NotificationService::new(
-        state.db.clone(),
-        state.config.smtp.outgoing.clone(),
-    );
+    let svc = NotificationService::new(state.db.clone(), state.config.smtp.outgoing.clone());
 
     let sub = subscriber_model(uuid::Uuid::new_v4(), "sub@example.com");
     let list = list_model(uuid::Uuid::new_v4(), "Test List");
@@ -117,10 +111,7 @@ async fn test_send_unsubscribe_confirm() {
 #[tokio::test]
 async fn test_send_moderation_notice() {
     let state = setup_db().await;
-    let svc = NotificationService::new(
-        state.db.clone(),
-        state.config.smtp.outgoing.clone(),
-    );
+    let svc = NotificationService::new(state.db.clone(), state.config.smtp.outgoing.clone());
 
     let list = list_model(uuid::Uuid::new_v4(), "Test List");
 
@@ -138,10 +129,7 @@ async fn test_send_moderation_notice() {
 #[tokio::test]
 async fn test_send_welcome() {
     let state = setup_db().await;
-    let svc = NotificationService::new(
-        state.db.clone(),
-        state.config.smtp.outgoing.clone(),
-    );
+    let svc = NotificationService::new(state.db.clone(), state.config.smtp.outgoing.clone());
 
     let sub = subscriber_model(uuid::Uuid::new_v4(), "sub@example.com");
     let list = list_model(uuid::Uuid::new_v4(), "Test List");
@@ -163,10 +151,7 @@ async fn test_notification_missing_template() {
     .await
     .unwrap();
 
-    let svc = NotificationService::new(
-        state.db.clone(),
-        state.config.smtp.outgoing.clone(),
-    );
+    let svc = NotificationService::new(state.db.clone(), state.config.smtp.outgoing.clone());
 
     let sub = subscriber_model(uuid::Uuid::new_v4(), "sub@example.com");
     let list = list_model(uuid::Uuid::new_v4(), "Test List");
