@@ -6,3 +6,5 @@ pub mod mail_service;
 pub mod archive_service;
 pub mod moderation_service;
 pub mod ai_service;
+pub mod template_service;
+pub mod notification_service;

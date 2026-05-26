@@ -17,7 +17,13 @@ async fn main() -> Result<()> {
     info!("Starting Oak MailList v0.1.0");
     info!("Loaded configuration from: config/default.toml");
 
-    let db = Database::connect(&config.database.url).await?;
+    let mut opt = sea_orm::ConnectOptions::new(&config.database.url);
+    opt.max_connections(config.database.max_connections)
+        .min_connections(config.database.min_connections)
+        .connect_timeout(std::time::Duration::from_secs(config.database.connect_timeout))
+        .idle_timeout(std::time::Duration::from_secs(config.database.idle_timeout))
+        .sqlx_logging(false);
+    let db = Database::connect(opt).await?;
     info!("Database connected");
 
     migration::Migrator::up(&db, None).await?;
@@ -42,6 +48,18 @@ async fn main() -> Result<()> {
             }
         });
     }
+
+    let digest_state = app_state.clone();
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(3600));
+        loop {
+            interval.tick().await;
+            let task = oak_maillist::tasks::digest::DigestTask::new(digest_state.clone());
+            if let Err(e) = task.run().await {
+                error!("Digest task error: {}", e);
+            }
+        }
+    });
 
     serve(listener, app).await?;
 

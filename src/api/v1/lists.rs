@@ -238,28 +238,85 @@ async fn update_list_settings(
     update_list(State(state), Path(id), Json(req)).await
 }
 
+#[derive(Deserialize)]
+struct SubscribeRequest {
+    email: String,
+    name: Option<String>,
+}
+
 async fn subscribe(
-    State(_state): State<AppState>,
-    Path(_id): Path<String>,
-    Json(_req): Json<serde_json::Value>,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(req): Json<SubscribeRequest>,
 ) -> ApiResult<serde_json::Value> {
-    todo!()
+    let svc = crate::services::subscriber_service::SubscriberService::new(state.db.clone());
+    let sub = svc.subscribe(&id, &req.email, req.name.as_deref(), &state.config.server.base_url)
+        .await
+        .map_err(|e| ApiError {
+            code: "INTERNAL_ERROR".to_string(),
+            message: e.to_string(),
+            details: None,
+            request_id: None,
+        })?;
+
+    Ok(Json(ApiResponse::new(serde_json::json!({
+        "id": sub.id,
+        "email": sub.email,
+        "status": sub.status,
+        "token": sub.token,
+    }))))
+}
+
+#[derive(Deserialize)]
+struct UnsubscribeRequest {
+    token: String,
 }
 
 async fn unsubscribe(
-    State(_state): State<AppState>,
-    Path(_id): Path<String>,
-    Json(_req): Json<serde_json::Value>,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(req): Json<UnsubscribeRequest>,
 ) -> ApiResult<serde_json::Value> {
-    todo!()
+    let svc = crate::services::subscriber_service::SubscriberService::new(state.db.clone());
+    svc.unsubscribe(&id, &req.token)
+        .await
+        .map_err(|e| ApiError {
+            code: "INTERNAL_ERROR".to_string(),
+            message: e.to_string(),
+            details: None,
+            request_id: None,
+        })?;
+
+    Ok(Json(ApiResponse::new(serde_json::json!({
+        "message": "Unsubscribed successfully"
+    }))))
+}
+
+#[derive(Deserialize)]
+struct ConfirmRequest {
+    token: String,
 }
 
 async fn confirm_subscription(
-    State(_state): State<AppState>,
-    Path(_id): Path<String>,
-    Json(_req): Json<serde_json::Value>,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(req): Json<ConfirmRequest>,
 ) -> ApiResult<serde_json::Value> {
-    todo!()
+    let svc = crate::services::subscriber_service::SubscriberService::new(state.db.clone());
+    let sub = svc.confirm(&id, &req.token)
+        .await
+        .map_err(|e| ApiError {
+            code: "INTERNAL_ERROR".to_string(),
+            message: e.to_string(),
+            details: None,
+            request_id: None,
+        })?;
+
+    Ok(Json(ApiResponse::new(serde_json::json!({
+        "id": sub.id,
+        "email": sub.email,
+        "status": sub.status,
+    }))))
 }
 
 async fn list_subscribers(

@@ -15,3 +15,5 @@ path = "src/main.rs"
 async-std = { version = "1", features = ["attributes", "tokio1"] }
 sea-orm-migration = { version = "1.1", features = ["sqlx-mysql", "sqlx-postgres", "runtime-tokio-rustls"] }
 tokio = { version = "1.44", features = ["full"] }
+chrono = "0.4"
+uuid = { version = "1.16", features = ["v4"] }

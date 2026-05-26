@@ -6,6 +6,7 @@ use std::path::Path;
 pub struct ServerConfig {
     pub host: String,
     pub port: u16,
+    pub base_url: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]

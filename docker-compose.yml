@@ -1,0 +1,41 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: oak
+      POSTGRES_PASSWORD: oak_secret
+      POSTGRES_DB: oak_maillist
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U oak -d oak_maillist"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+      - "2525:2525"
+    environment:
+      OAK__DATABASE__URL: postgres://oak:oak_secret@db:5432/oak_maillist
+      OAK__SERVER__BASE_URL: http://localhost:3000
+      OAK__SMTP__INCOMING__ENABLED: "true"
+      OAK__SMTP__OUTGOING__HOST: smtp.example.com
+      OAK__SMTP__OUTGOING__PORT: 587
+      OAK__SMTP__OUTGOING__USERNAME: ""
+      OAK__SMTP__OUTGOING__PASSWORD: ""
+      OAK__SMTP__OUTGOING__FROM_ADDRESS: noreply@example.com
+      OAK__AI_MODERATION__ENABLED: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
