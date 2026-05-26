@@ -1,0 +1,56 @@
+version: "3.8"
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    volumes:
+      - ..:/workspace:cached
+      - cargo-cache:/usr/local/cargo/registry
+      - target-cache:/workspace/target
+    command: sleep infinity
+    environment:
+      - CARGO_HOME=/usr/local/cargo
+      - OAK__DATABASE__URL=postgres://oak:oak_secret@db:5432/oak_maillist
+      - OAK__SMTP__OUTGOING__HOST=mailpit
+      - OAK__SMTP__OUTGOING__PORT=1025
+      - OAK__SMTP__OUTGOING__FROM_ADDRESS=noreply@example.com
+      - OAK__AI_MODERATION__ENABLED=false
+    ports:
+      - "3000:3000"
+      - "2525:2525"
+      - "5173:5173"
+    depends_on:
+      - db
+      - mailpit
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: oak
+      POSTGRES_PASSWORD: oak_secret
+      POSTGRES_DB: oak_maillist
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U oak -d oak_maillist"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  mailpit:
+    image: axllent/mailpit
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    volumes:
+      - mailpit_data:/data
+
+volumes:
+  cargo-cache:
+  target-cache:
+  postgres_data:
+  mailpit_data:
