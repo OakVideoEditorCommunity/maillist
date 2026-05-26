@@ -41,11 +41,12 @@ impl MigrationTrait for Migration {
         ];
 
         for (id, name, subject, body_text, body_html) in templates {
+            let id_hex = id.as_simple().to_string();
             let sql = format!(
                 "INSERT INTO email_template (id, name, subject, body_text, body_html, is_system, created_at, updated_at)
-                 VALUES ('{}', '{}', '{}', '{}', '{}', true, '{}', '{}')
+                 VALUES (X'{}', '{}', '{}', '{}', '{}', true, '{}', '{}')
                  ON CONFLICT (name) DO NOTHING",
-                id, name,
+                id_hex, name,
                 subject.replace("'", "''"),
                 body_text.replace("'", "''"),
                 body_html.replace("'", "''"),

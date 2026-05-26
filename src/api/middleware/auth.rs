@@ -34,11 +34,18 @@ pub async fn require_auth(
     };
 
     let service = AuthService::new(state.db.clone(), state.config.clone());
-    let claims = match service.verify_access_token(token) {
+    let token_claims = match service.verify_access_token(token) {
         Ok(claims) => claims,
         Err(_) => return Err(StatusCode::UNAUTHORIZED),
     };
 
+    let claims = Claims {
+        sub: token_claims.sub,
+        email: token_claims.email,
+        role: token_claims.role,
+        iat: token_claims.iat,
+        exp: token_claims.exp,
+    };
     request.extensions_mut().insert(claims);
     Ok(next.run(request).await)
 }
@@ -69,7 +76,14 @@ pub async fn optional_auth(
 
     if let Some(token) = auth_header {
         let service = AuthService::new(state.db.clone(), state.config.clone());
-        if let Ok(claims) = service.verify_access_token(token) {
+        if let Ok(token_claims) = service.verify_access_token(token) {
+            let claims = Claims {
+                sub: token_claims.sub,
+                email: token_claims.email,
+                role: token_claims.role,
+                iat: token_claims.iat,
+                exp: token_claims.exp,
+            };
             request.extensions_mut().insert(claims);
         }
     }
