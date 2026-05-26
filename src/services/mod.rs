@@ -8,3 +8,4 @@ pub mod moderation_service;
 pub mod ai_service;
 pub mod template_service;
 pub mod notification_service;
+pub mod domain_service;

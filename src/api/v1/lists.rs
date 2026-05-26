@@ -6,6 +6,7 @@ use axum::{
     routing::{delete, get, post, put},
     Json, Router,
 };
+use sea_orm::ActiveModelTrait;
 use serde::Deserialize;
 use std::collections::HashMap;
 
@@ -210,17 +211,83 @@ async fn delete_list(
 }
 
 async fn clear_archive(
-    State(_state): State<AppState>,
-    Path(_id): Path<String>,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
 ) -> ApiResult<serde_json::Value> {
-    todo!()
+    use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
+    let list_uuid = uuid::Uuid::parse_str(&id).map_err(|e| ApiError {
+        code: "VALIDATION_ERROR".to_string(),
+        message: e.to_string(),
+        details: None,
+        request_id: None,
+    })?;
+
+    let messages = crate::models::email_message::Entity::find()
+        .filter(crate::models::email_message::Column::ListId.eq(list_uuid))
+        .filter(crate::models::email_message::Column::IsDeleted.eq(false))
+        .all(&state.db)
+        .await
+        .map_err(|e| ApiError {
+            code: "INTERNAL_ERROR".to_string(),
+            message: e.to_string(),
+            details: None,
+            request_id: None,
+        })?;
+
+    for msg in messages {
+        let mut active: crate::models::email_message::ActiveModel = msg.into();
+        active.is_deleted = Set(true);
+        active.deleted_at = Set(Some(chrono::Utc::now().into()));
+        active.deleted_reason = Set(Some("Archive cleared".to_string()));
+        let _ = active.update(&state.db).await;
+    }
+
+    Ok(Json(ApiResponse::new(serde_json::json!({
+        "message": "Archive cleared"
+    }))))
 }
 
 async fn get_list_stats(
-    State(_state): State<AppState>,
-    Path(_id): Path<String>,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
 ) -> ApiResult<serde_json::Value> {
-    todo!()
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+    let list_uuid = uuid::Uuid::parse_str(&id).map_err(|e| ApiError {
+        code: "VALIDATION_ERROR".to_string(),
+        message: e.to_string(),
+        details: None,
+        request_id: None,
+    })?;
+
+    let subscriber_count = crate::models::subscriber::Entity::find()
+        .filter(crate::models::subscriber::Column::ListId.eq(list_uuid))
+        .filter(crate::models::subscriber::Column::Status.eq("active"))
+        .all(&state.db)
+        .await
+        .unwrap_or_default()
+        .len() as u64;
+
+    let message_count = crate::models::email_message::Entity::find()
+        .filter(crate::models::email_message::Column::ListId.eq(list_uuid))
+        .filter(crate::models::email_message::Column::IsDeleted.eq(false))
+        .all(&state.db)
+        .await
+        .unwrap_or_default()
+        .len() as u64;
+
+    let pending_moderation = crate::models::moderation_queue::Entity::find()
+        .filter(crate::models::moderation_queue::Column::ListId.eq(list_uuid))
+        .filter(crate::models::moderation_queue::Column::Status.eq("pending"))
+        .all(&state.db)
+        .await
+        .unwrap_or_default()
+        .len() as u64;
+
+    Ok(Json(ApiResponse::new(serde_json::json!({
+        "subscriber_count": subscriber_count,
+        "message_count": message_count,
+        "pending_moderation": pending_moderation,
+    }))))
 }
 
 async fn get_list_settings(
@@ -320,64 +387,293 @@ async fn confirm_subscription(
 }
 
 async fn list_subscribers(
-    State(_state): State<AppState>,
-    Path(_id): Path<String>,
-    Query(_params): Query<HashMap<String, String>>,
-) -> ApiResult<Vec<serde_json::Value>> {
-    todo!()
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Query(params): Query<HashMap<String, String>>,
+) -> ApiResult<serde_json::Value> {
+    use sea_orm::PaginatorTrait;
+    let svc = crate::services::subscriber_service::SubscriberService::new(state.db.clone());
+    let page: u64 = params.get("page").and_then(|v| v.parse().ok()).unwrap_or(1);
+    let per_page: u64 = params.get("per_page").and_then(|v| v.parse().ok()).unwrap_or(20).min(100);
+
+    let (items, total) = svc.list_by_list(&id, page, per_page).await.map_err(|e| ApiError {
+        code: "INTERNAL_ERROR".to_string(),
+        message: e.to_string(),
+        details: None,
+        request_id: None,
+    })?;
+
+    let result: Vec<_> = items.into_iter().map(|s| {
+        serde_json::json!({
+            "id": s.id,
+            "email": s.email,
+            "name": s.name,
+            "status": s.status,
+            "digest_mode": s.digest_mode,
+            "confirmed_at": s.confirmed_at,
+            "created_at": s.created_at,
+        })
+    }).collect();
+
+    Ok(Json(ApiResponse::with_meta(
+        serde_json::json!({ "items": result }),
+        serde_json::json!({ "page": page, "per_page": per_page, "total": total }),
+    )))
 }
 
 async fn add_subscriber(
-    State(_state): State<AppState>,
-    Path(_id): Path<String>,
-    Json(_req): Json<serde_json::Value>,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(req): Json<serde_json::Value>,
 ) -> ApiResult<serde_json::Value> {
-    todo!()
+    let email = req.get("email").and_then(|v| v.as_str()).ok_or(ApiError {
+        code: "VALIDATION_ERROR".to_string(),
+        message: "email is required".to_string(),
+        details: None,
+        request_id: None,
+    })?;
+    let name = req.get("name").and_then(|v| v.as_str());
+
+    let svc = crate::services::subscriber_service::SubscriberService::new(state.db.clone());
+    let sub = svc.subscribe(&id, email, name, &state.config.server.base_url).await.map_err(|e| ApiError {
+        code: "INTERNAL_ERROR".to_string(),
+        message: e.to_string(),
+        details: None,
+        request_id: None,
+    })?;
+
+    let mut active: crate::models::subscriber::ActiveModel = sub.into();
+    active.status = sea_orm::Set("active".to_string());
+    active.confirmed_at = sea_orm::Set(Some(chrono::Utc::now().into()));
+    let sub = active.update(&state.db).await.map_err(|e| ApiError {
+        code: "INTERNAL_ERROR".to_string(),
+        message: e.to_string(),
+        details: None,
+        request_id: None,
+    })?;
+
+    Ok(Json(ApiResponse::new(serde_json::json!({
+        "id": sub.id,
+        "email": sub.email,
+        "status": sub.status,
+    }))))
 }
 
 async fn get_subscriber(
-    State(_state): State<AppState>,
-    Path((_id, _sub_id)): Path<(String, String)>,
+    State(state): State<AppState>,
+    Path((_id, sub_id)): Path<(String, String)>,
 ) -> ApiResult<serde_json::Value> {
-    todo!()
+    use sea_orm::EntityTrait;
+    let uuid = uuid::Uuid::parse_str(&sub_id).map_err(|e| ApiError {
+        code: "VALIDATION_ERROR".to_string(),
+        message: e.to_string(),
+        details: None,
+        request_id: None,
+    })?;
+
+    let sub = crate::models::subscriber::Entity::find_by_id(uuid)
+        .one(&state.db)
+        .await
+        .map_err(|e| ApiError {
+            code: "INTERNAL_ERROR".to_string(),
+            message: e.to_string(),
+            details: None,
+            request_id: None,
+        })?
+        .ok_or(ApiError {
+            code: "NOT_FOUND".to_string(),
+            message: "Subscriber not found".to_string(),
+            details: None,
+            request_id: None,
+        })?;
+
+    Ok(Json(ApiResponse::new(serde_json::json!({
+        "id": sub.id,
+        "email": sub.email,
+        "name": sub.name,
+        "status": sub.status,
+        "digest_mode": sub.digest_mode,
+        "bounce_count": sub.bounce_count,
+    }))))
 }
 
 async fn update_subscriber(
-    State(_state): State<AppState>,
-    Path((_id, _sub_id)): Path<(String, String)>,
-    Json(_req): Json<serde_json::Value>,
+    State(state): State<AppState>,
+    Path((_id, sub_id)): Path<(String, String)>,
+    Json(req): Json<serde_json::Value>,
 ) -> ApiResult<serde_json::Value> {
-    todo!()
+    use sea_orm::{ActiveModelTrait, EntityTrait, Set};
+    let uuid = uuid::Uuid::parse_str(&sub_id).map_err(|e| ApiError {
+        code: "VALIDATION_ERROR".to_string(),
+        message: e.to_string(),
+        details: None,
+        request_id: None,
+    })?;
+
+    let sub = crate::models::subscriber::Entity::find_by_id(uuid)
+        .one(&state.db)
+        .await
+        .map_err(|e| ApiError {
+            code: "INTERNAL_ERROR".to_string(),
+            message: e.to_string(),
+            details: None,
+            request_id: None,
+        })?
+        .ok_or(ApiError {
+            code: "NOT_FOUND".to_string(),
+            message: "Subscriber not found".to_string(),
+            details: None,
+            request_id: None,
+        })?;
+
+    let mut active: crate::models::subscriber::ActiveModel = sub.into();
+    if let Some(v) = req.get("status").and_then(|v| v.as_str()) {
+        active.status = Set(v.to_string());
+    }
+    if let Some(v) = req.get("digest_mode").and_then(|v| v.as_str()) {
+        active.digest_mode = Set(v.to_string());
+    }
+    if let Some(v) = req.get("name").and_then(|v| v.as_str()) {
+        active.name = Set(Some(v.to_string()));
+    }
+    active.updated_at = Set(chrono::Utc::now().into());
+
+    let updated = active.update(&state.db).await.map_err(|e| ApiError {
+        code: "INTERNAL_ERROR".to_string(),
+        message: e.to_string(),
+        details: None,
+        request_id: None,
+    })?;
+
+    Ok(Json(ApiResponse::new(serde_json::json!({
+        "id": updated.id,
+        "status": updated.status,
+        "digest_mode": updated.digest_mode,
+    }))))
 }
 
 async fn remove_subscriber(
-    State(_state): State<AppState>,
-    Path((_id, _sub_id)): Path<(String, String)>,
+    State(state): State<AppState>,
+    Path((_id, sub_id)): Path<(String, String)>,
 ) -> ApiResult<serde_json::Value> {
-    todo!()
+    use sea_orm::EntityTrait;
+    let uuid = uuid::Uuid::parse_str(&sub_id).map_err(|e| ApiError {
+        code: "VALIDATION_ERROR".to_string(),
+        message: e.to_string(),
+        details: None,
+        request_id: None,
+    })?;
+
+    crate::models::subscriber::Entity::delete_by_id(uuid)
+        .exec(&state.db)
+        .await
+        .map_err(|e| ApiError {
+            code: "INTERNAL_ERROR".to_string(),
+            message: e.to_string(),
+            details: None,
+            request_id: None,
+        })?;
+
+    Ok(Json(ApiResponse::new(serde_json::json!({
+        "message": "Subscriber removed"
+    }))))
 }
 
 async fn import_subscribers(
-    State(_state): State<AppState>,
-    Path(_id): Path<String>,
-    Json(_req): Json<serde_json::Value>,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(req): Json<serde_json::Value>,
 ) -> ApiResult<serde_json::Value> {
-    todo!()
+    let emails = req.get("emails").and_then(|v| v.as_array()).ok_or(ApiError {
+        code: "VALIDATION_ERROR".to_string(),
+        message: "emails array is required".to_string(),
+        details: None,
+        request_id: None,
+    })?;
+
+    let svc = crate::services::subscriber_service::SubscriberService::new(state.db.clone());
+    let mut count = 0;
+    for e in emails {
+        if let Some(email) = e.as_str() {
+            if svc.subscribe(&id, email, None, &state.config.server.base_url).await.is_ok() {
+                count += 1;
+            }
+        }
+    }
+
+    Ok(Json(ApiResponse::new(serde_json::json!({
+        "imported": count,
+    }))))
 }
 
 async fn export_subscribers(
-    State(_state): State<AppState>,
-    Path(_id): Path<String>,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
 ) -> ApiResult<String> {
-    todo!()
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder};
+    let list_uuid = uuid::Uuid::parse_str(&id).map_err(|e| ApiError {
+        code: "VALIDATION_ERROR".to_string(),
+        message: e.to_string(),
+        details: None,
+        request_id: None,
+    })?;
+
+    let items = crate::models::subscriber::Entity::find()
+        .filter(crate::models::subscriber::Column::ListId.eq(list_uuid))
+        .order_by_asc(crate::models::subscriber::Column::Email)
+        .all(&state.db)
+        .await
+        .map_err(|e| ApiError {
+            code: "INTERNAL_ERROR".to_string(),
+            message: e.to_string(),
+            details: None,
+            request_id: None,
+        })?;
+
+    let mut csv = "email,name,status\n".to_string();
+    for s in items {
+        csv.push_str(&format!("{},{},{}\n", s.email, s.name.as_deref().unwrap_or(""), s.status));
+    }
+
+    Ok(Json(ApiResponse::new(csv)))
 }
 
 async fn bulk_update_subscribers(
-    State(_state): State<AppState>,
-    Path(_id): Path<String>,
-    Json(_req): Json<serde_json::Value>,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(req): Json<serde_json::Value>,
 ) -> ApiResult<serde_json::Value> {
-    todo!()
+    use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
+    let list_uuid = uuid::Uuid::parse_str(&id).map_err(|e| ApiError {
+        code: "VALIDATION_ERROR".to_string(),
+        message: e.to_string(),
+        details: None,
+        request_id: None,
+    })?;
+
+    let status = req.get("status").and_then(|v| v.as_str());
+    let ids = req.get("ids").and_then(|v| v.as_array());
+
+    if let Some(ids) = ids {
+        for id_val in ids {
+            if let Some(sid) = id_val.as_str() {
+                if let Ok(uid) = uuid::Uuid::parse_str(sid) {
+                    if let Ok(Some(sub)) = crate::models::subscriber::Entity::find_by_id(uid).one(&state.db).await {
+                        let mut active: crate::models::subscriber::ActiveModel = sub.into();
+                        if let Some(s) = status {
+                            active.status = Set(s.to_string());
+                        }
+                        active.updated_at = Set(chrono::Utc::now().into());
+                        let _ = active.update(&state.db).await;
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(Json(ApiResponse::new(serde_json::json!({
+        "message": "Bulk update completed"
+    }))))
 }
 
 async fn list_messages(
@@ -539,24 +835,102 @@ async fn delete_message(
 }
 
 async fn download_raw_message(
-    State(_state): State<AppState>,
-    Path((_id, _msg_id)): Path<(String, String)>,
+    State(state): State<AppState>,
+    Path((_id, msg_id)): Path<(String, String)>,
 ) -> ApiResult<String> {
-    todo!()
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+    let msg_uuid = uuid::Uuid::parse_str(&msg_id).map_err(|e| ApiError {
+        code: "VALIDATION_ERROR".to_string(),
+        message: e.to_string(),
+        details: None,
+        request_id: None,
+    })?;
+
+    let message = crate::models::email_message::Entity::find_by_id(msg_uuid)
+        .filter(crate::models::email_message::Column::IsDeleted.eq(false))
+        .one(&state.db)
+        .await
+        .map_err(|e| ApiError {
+            code: "INTERNAL_ERROR".to_string(),
+            message: e.to_string(),
+            details: None,
+            request_id: None,
+        })?
+        .ok_or(ApiError {
+            code: "NOT_FOUND".to_string(),
+            message: "Message not found".to_string(),
+            details: None,
+            request_id: None,
+        })?;
+
+    let raw = message.raw_content.unwrap_or_default();
+    Ok(Json(ApiResponse::new(raw)))
 }
 
 async fn list_attachments(
-    State(_state): State<AppState>,
-    Path((_id, _msg_id)): Path<(String, String)>,
+    State(state): State<AppState>,
+    Path((_id, msg_id)): Path<(String, String)>,
 ) -> ApiResult<Vec<serde_json::Value>> {
-    todo!()
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+    let msg_uuid = uuid::Uuid::parse_str(&msg_id).map_err(|e| ApiError {
+        code: "VALIDATION_ERROR".to_string(),
+        message: e.to_string(),
+        details: None,
+        request_id: None,
+    })?;
+
+    let items = crate::models::attachment::Entity::find()
+        .filter(crate::models::attachment::Column::MessageId.eq(msg_uuid))
+        .all(&state.db)
+        .await
+        .map_err(|e| ApiError {
+            code: "INTERNAL_ERROR".to_string(),
+            message: e.to_string(),
+            details: None,
+            request_id: None,
+        })?;
+
+    let result: Vec<_> = items.into_iter().map(|a| {
+        serde_json::json!({
+            "id": a.id,
+            "filename": a.filename,
+            "content_type": a.content_type,
+            "size_bytes": a.size_bytes,
+        })
+    }).collect();
+
+    Ok(Json(ApiResponse::new(result)))
 }
 
 async fn download_attachment(
-    State(_state): State<AppState>,
-    Path((_id, _msg_id, _att_id)): Path<(String, String, String)>,
+    State(state): State<AppState>,
+    Path((_id, _msg_id, att_id)): Path<(String, String, String)>,
 ) -> ApiResult<Vec<u8>> {
-    todo!()
+    use sea_orm::EntityTrait;
+    let att_uuid = uuid::Uuid::parse_str(&att_id).map_err(|e| ApiError {
+        code: "VALIDATION_ERROR".to_string(),
+        message: e.to_string(),
+        details: None,
+        request_id: None,
+    })?;
+
+    let att = crate::models::attachment::Entity::find_by_id(att_uuid)
+        .one(&state.db)
+        .await
+        .map_err(|e| ApiError {
+            code: "INTERNAL_ERROR".to_string(),
+            message: e.to_string(),
+            details: None,
+            request_id: None,
+        })?
+        .ok_or(ApiError {
+            code: "NOT_FOUND".to_string(),
+            message: "Attachment not found".to_string(),
+            details: None,
+            request_id: None,
+        })?;
+
+    Ok(Json(ApiResponse::new(att.storage_path.unwrap_or_default().into_bytes())))
 }
 
 async fn list_threads(
@@ -687,32 +1061,155 @@ async fn search_archive(
 }
 
 async fn list_moderation_queue(
-    State(_state): State<AppState>,
-    Path(_id): Path<String>,
-    Query(_params): Query<HashMap<String, String>>,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Query(params): Query<HashMap<String, String>>,
 ) -> ApiResult<Vec<serde_json::Value>> {
-    todo!()
+    use sea_orm::{ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder};
+    let list_uuid = uuid::Uuid::parse_str(&id).map_err(|e| ApiError {
+        code: "VALIDATION_ERROR".to_string(),
+        message: e.to_string(),
+        details: None,
+        request_id: None,
+    })?;
+
+    let page: u64 = params.get("page").and_then(|v| v.parse().ok()).unwrap_or(1);
+    let per_page: u64 = params.get("per_page").and_then(|v| v.parse().ok()).unwrap_or(20).min(100);
+
+    let paginator = crate::models::moderation_queue::Entity::find()
+        .filter(crate::models::moderation_queue::Column::ListId.eq(list_uuid))
+        .order_by_desc(crate::models::moderation_queue::Column::CreatedAt)
+        .paginate(&state.db, per_page);
+
+    let items = paginator.fetch_page(page - 1).await.map_err(|e| ApiError {
+        code: "INTERNAL_ERROR".to_string(),
+        message: e.to_string(),
+        details: None,
+        request_id: None,
+    })?;
+
+    let result: Vec<_> = items.into_iter().map(|m| {
+        serde_json::json!({
+            "id": m.id,
+            "from_addr": m.from_addr,
+            "subject": m.subject,
+            "reason": m.reason,
+            "status": m.status,
+            "ai_risk_score": m.ai_risk_score,
+            "created_at": m.created_at,
+        })
+    }).collect();
+
+    Ok(Json(ApiResponse::new(result)))
 }
 
 async fn list_policies(
-    State(_state): State<AppState>,
-    Path(_id): Path<String>,
-    Query(_params): Query<HashMap<String, String>>,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    _params: Query<HashMap<String, String>>,
 ) -> ApiResult<Vec<serde_json::Value>> {
-    todo!()
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+    let list_uuid = uuid::Uuid::parse_str(&id).map_err(|e| ApiError {
+        code: "VALIDATION_ERROR".to_string(),
+        message: e.to_string(),
+        details: None,
+        request_id: None,
+    })?;
+
+    let items = crate::models::sender_policy::Entity::find()
+        .filter(crate::models::sender_policy::Column::ListId.eq(Some(list_uuid)))
+        .all(&state.db)
+        .await
+        .map_err(|e| ApiError {
+            code: "INTERNAL_ERROR".to_string(),
+            message: e.to_string(),
+            details: None,
+            request_id: None,
+        })?;
+
+    let result: Vec<_> = items.into_iter().map(|p| {
+        serde_json::json!({
+            "id": p.id,
+            "email_pattern": p.email_pattern,
+            "policy_type": p.policy_type,
+            "scope": p.scope,
+            "note": p.note,
+        })
+    }).collect();
+
+    Ok(Json(ApiResponse::new(result)))
 }
 
 async fn add_policy(
-    State(_state): State<AppState>,
-    Path(_id): Path<String>,
-    Json(_req): Json<serde_json::Value>,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(req): Json<serde_json::Value>,
 ) -> ApiResult<serde_json::Value> {
-    todo!()
+    use sea_orm::Set;
+    let list_uuid = uuid::Uuid::parse_str(&id).map_err(|e| ApiError {
+        code: "VALIDATION_ERROR".to_string(),
+        message: e.to_string(),
+        details: None,
+        request_id: None,
+    })?;
+
+    let email_pattern = req.get("email_pattern").and_then(|v| v.as_str()).ok_or(ApiError {
+        code: "VALIDATION_ERROR".to_string(),
+        message: "email_pattern is required".to_string(),
+        details: None,
+        request_id: None,
+    })?;
+
+    let policy_type = req.get("policy_type").and_then(|v| v.as_str()).unwrap_or("blacklist");
+    let scope = req.get("scope").and_then(|v| v.as_str()).unwrap_or("post");
+
+    let policy = crate::models::sender_policy::ActiveModel {
+        id: Set(crate::utils::crypto::generate_uuid()),
+        list_id: Set(Some(list_uuid)),
+        email_pattern: Set(email_pattern.to_string()),
+        policy_type: Set(policy_type.to_string()),
+        scope: Set(scope.to_string()),
+        note: Set(req.get("note").and_then(|v| v.as_str()).map(|s| s.to_string())),
+        created_by: Set(None),
+        created_at: Set(chrono::Utc::now().into()),
+    };
+
+    let model = policy.insert(&state.db).await.map_err(|e| ApiError {
+        code: "INTERNAL_ERROR".to_string(),
+        message: e.to_string(),
+        details: None,
+        request_id: None,
+    })?;
+
+    Ok(Json(ApiResponse::new(serde_json::json!({
+        "id": model.id,
+        "email_pattern": model.email_pattern,
+    }))))
 }
 
 async fn delete_policy(
-    State(_state): State<AppState>,
-    Path((_id, _policy_id)): Path<(String, String)>,
+    State(state): State<AppState>,
+    Path((_id, policy_id)): Path<(String, String)>,
 ) -> ApiResult<serde_json::Value> {
-    todo!()
+    use sea_orm::EntityTrait;
+    let pol_uuid = uuid::Uuid::parse_str(&policy_id).map_err(|e| ApiError {
+        code: "VALIDATION_ERROR".to_string(),
+        message: e.to_string(),
+        details: None,
+        request_id: None,
+    })?;
+
+    crate::models::sender_policy::Entity::delete_by_id(pol_uuid)
+        .exec(&state.db)
+        .await
+        .map_err(|e| ApiError {
+            code: "INTERNAL_ERROR".to_string(),
+            message: e.to_string(),
+            details: None,
+            request_id: None,
+        })?;
+
+    Ok(Json(ApiResponse::new(serde_json::json!({
+        "message": "Policy deleted"
+    }))))
 }

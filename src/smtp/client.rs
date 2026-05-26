@@ -17,7 +17,8 @@ impl SmtpClient {
         Self { transport }
     }
 
-    pub async fn send(&self, _message: Message) -> anyhow::Result<()> {
-        todo!()
+    pub async fn send(&self, message: Message) -> anyhow::Result<()> {
+        self.transport.send(&message)?;
+        Ok(())
     }
 }

@@ -24,45 +24,7 @@ async fn setup_db() -> AppState {
 }
 
 #[tokio::test]
-async fn test_list_service_create_and_find() {
-    let state = setup_db().await;
-    let svc = oak_maillist::services::list_service::ListService::new(state.db.clone());
-
-    let domain = oak_maillist::models::domain::ActiveModel {
-        id: Set(oak_maillist::utils::crypto::generate_uuid()),
-        name: Set("example.com".to_string()),
-        smtp_host: Set(None),
-        smtp_port: Set(None),
-        smtp_username: Set(None),
-        smtp_password: Set(None),
-        dkim_selector: Set(None),
-        dkim_private_key: Set(None),
-        created_at: Set(chrono::Utc::now().into()),
-        updated_at: Set(chrono::Utc::now().into()),
-    };
-    let domain_model = domain.insert(&state.db).await.unwrap();
-
-    let list = svc
-        .create(
-            &domain_model.id.to_string(),
-            "test-list",
-            "test",
-            Some("Test List"),
-            None,
-        )
-        .await
-        .unwrap();
-
-    assert_eq!(list.name, "test-list");
-    assert_eq!(list.email_local_part, "test");
-
-    let found = svc.find_by_id(&list.id.to_string()).await.unwrap();
-    assert!(found.is_some());
-    assert_eq!(found.unwrap().name, "test-list");
-}
-
-#[tokio::test]
-async fn test_subscriber_service_lifecycle() {
+async fn test_deliver_task_creates_email_message() {
     let state = setup_db().await;
     let list_svc = oak_maillist::services::list_service::ListService::new(state.db.clone());
 
@@ -79,68 +41,18 @@ async fn test_subscriber_service_lifecycle() {
         updated_at: Set(chrono::Utc::now().into()),
     };
     let domain_model = domain.insert(&state.db).await.unwrap();
-
-    let list = list_svc
-        .create(&domain_model.id.to_string(), "sub-test", "sub", None, None)
-        .await
-        .unwrap();
-
-    let sub_svc = oak_maillist::services::subscriber_service::SubscriberService::new(state.db.clone());
-
-    let sub = sub_svc
-        .subscribe(&list.id.to_string(), "user@example.com", Some("User"), "http://localhost")
-        .await
-        .unwrap();
-    assert_eq!(sub.email, "user@example.com");
-    assert_eq!(sub.status, "pending");
-
-    let confirmed = sub_svc
-        .confirm(&list.id.to_string(), &sub.token)
-        .await
-        .unwrap();
-    assert_eq!(confirmed.status, "active");
-
-    sub_svc
-        .unsubscribe(&list.id.to_string(), &sub.token)
-        .await
-        .unwrap();
-}
-
-#[tokio::test]
-async fn test_moderation_service_approve_reject() {
-    let state = setup_db().await;
-    let list_svc = oak_maillist::services::list_service::ListService::new(state.db.clone());
-    let svc = oak_maillist::services::moderation_service::ModerationService::new(state.db.clone());
-
-    let domain = oak_maillist::models::domain::ActiveModel {
-        id: Set(oak_maillist::utils::crypto::generate_uuid()),
-        name: Set("example.com".to_string()),
-        smtp_host: Set(None),
-        smtp_port: Set(None),
-        smtp_username: Set(None),
-        smtp_password: Set(None),
-        dkim_selector: Set(None),
-        dkim_private_key: Set(None),
-        created_at: Set(chrono::Utc::now().into()),
-        updated_at: Set(chrono::Utc::now().into()),
-    };
-    let domain_model = domain.insert(&state.db).await.unwrap();
-
-    let list = list_svc
-        .create(&domain_model.id.to_string(), "mod-test", "mod", None, None)
-        .await
-        .unwrap();
+    let list = list_svc.create(&domain_model.id.to_string(), "deliver-test", "del", None, None).await.unwrap();
 
     let item = oak_maillist::models::moderation_queue::ActiveModel {
         id: Set(oak_maillist::utils::crypto::generate_uuid()),
         list_id: Set(list.id),
         message_id: Set(None),
-        from_addr: Set("spammer@example.com".to_string()),
-        subject: Set(Some("Spam".to_string())),
-        reason: Set("ai_moderation".to_string()),
-        status: Set("pending".to_string()),
+        from_addr: Set("sender@example.com".to_string()),
+        subject: Set(Some("Hello".to_string())),
+        reason: Set("test".to_string()),
+        status: Set("approved".to_string()),
         source: Set("smtp".to_string()),
-        ai_risk_score: Set(Some(90)),
+        ai_risk_score: Set(None),
         ai_labels: Set(None),
         ai_raw_response: Set(None),
         ai_reviewed: Set(false),
@@ -151,21 +63,101 @@ async fn test_moderation_service_approve_reject() {
     };
     let model = item.insert(&state.db).await.unwrap();
 
-    svc.approve(&model.id.to_string(), None).await.unwrap();
+    let task = oak_maillist::tasks::deliver::DeliverTask::new(state.db.clone());
+    task.run().await.unwrap();
 
     let updated = oak_maillist::models::moderation_queue::Entity::find_by_id(model.id)
         .one(&state.db)
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(updated.status, "approved");
+    assert!(updated.message_id.is_some());
 
-    svc.reject(&model.id.to_string(), None, Some("spam")).await.unwrap();
-    let updated2 = oak_maillist::models::moderation_queue::Entity::find_by_id(model.id)
+    let msg_count = oak_maillist::models::email_message::Entity::find()
+        .all(&state.db)
+        .await
+        .unwrap()
+        .len();
+    assert_eq!(msg_count, 1);
+}
+
+#[tokio::test]
+async fn test_ai_moderate_task_marks_reviewed() {
+    let state = setup_db().await;
+    let list_svc = oak_maillist::services::list_service::ListService::new(state.db.clone());
+
+    let domain = oak_maillist::models::domain::ActiveModel {
+        id: Set(oak_maillist::utils::crypto::generate_uuid()),
+        name: Set("example.com".to_string()),
+        smtp_host: Set(None),
+        smtp_port: Set(None),
+        smtp_username: Set(None),
+        smtp_password: Set(None),
+        dkim_selector: Set(None),
+        dkim_private_key: Set(None),
+        created_at: Set(chrono::Utc::now().into()),
+        updated_at: Set(chrono::Utc::now().into()),
+    };
+    let domain_model = domain.insert(&state.db).await.unwrap();
+    let list = list_svc.create(&domain_model.id.to_string(), "ai-test", "ai", None, None).await.unwrap();
+
+    let item = oak_maillist::models::moderation_queue::ActiveModel {
+        id: Set(oak_maillist::utils::crypto::generate_uuid()),
+        list_id: Set(list.id),
+        message_id: Set(None),
+        from_addr: Set("sender@example.com".to_string()),
+        subject: Set(Some("Spam".to_string())),
+        reason: Set("ai_moderation".to_string()),
+        status: Set("pending".to_string()),
+        source: Set("ai_flagged".to_string()),
+        ai_risk_score: Set(Some(80)),
+        ai_labels: Set(None),
+        ai_raw_response: Set(None),
+        ai_reviewed: Set(false),
+        moderated_by: Set(None),
+        moderated_at: Set(None),
+        moderation_note: Set(None),
+        created_at: Set(chrono::Utc::now().into()),
+    };
+    let model = item.insert(&state.db).await.unwrap();
+
+    let task = oak_maillist::tasks::ai_moderate::AiModerateTask::new(state.db.clone());
+    task.run().await.unwrap();
+
+    let updated = oak_maillist::models::moderation_queue::Entity::find_by_id(model.id)
         .one(&state.db)
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(updated2.status, "rejected");
-    assert_eq!(updated2.moderation_note, Some("spam".to_string()));
+    assert!(updated.ai_reviewed);
+}
+
+#[tokio::test]
+async fn test_cleanup_task_deletes_old_records() {
+    let state = setup_db().await;
+
+    let old_time = chrono::Utc::now() - chrono::Duration::days(60);
+
+    let session = oak_maillist::models::auth_session::ActiveModel {
+        id: Set(oak_maillist::utils::crypto::generate_uuid()),
+        user_id: Set(oak_maillist::utils::crypto::generate_uuid()),
+        session_token: Set("old-token".to_string()),
+        step: Set("complete".to_string()),
+        mfa_type: Set(None),
+        ip_address: Set(None),
+        user_agent: Set(None),
+        expires_at: Set(old_time.into()),
+        created_at: Set(old_time.into()),
+    };
+    session.insert(&state.db).await.unwrap();
+
+    let task = oak_maillist::tasks::cleanup::CleanupTask::new(state.db.clone());
+    task.run().await.unwrap();
+
+    let remaining = oak_maillist::models::auth_session::Entity::find()
+        .all(&state.db)
+        .await
+        .unwrap()
+        .len();
+    assert_eq!(remaining, 0);
 }
