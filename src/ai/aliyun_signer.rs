@@ -44,7 +44,7 @@ impl AliyunV3Signer {
 
         let mut all_headers = headers.to_vec();
         all_headers.extend(result.clone());
-        all_headers.sort_by(|a, b| a.0.to_lowercase().cmp(&b.0.to_lowercase()));
+        all_headers.sort_by_key(|a| a.0.to_lowercase());
 
         let canonical_headers: Vec<String> = all_headers
             .iter()
