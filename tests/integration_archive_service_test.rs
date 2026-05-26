@@ -156,7 +156,7 @@ async fn test_search_from_filter() {
         .unwrap();
     let archive_svc = ArchiveService::new(state.db.clone());
 
-    let mut msg = oak_maillist::models::email_message::ActiveModel {
+    let msg = oak_maillist::models::email_message::ActiveModel {
         id: Set(oak_maillist::utils::crypto::generate_uuid()),
         list_id: Set(list.id),
         message_id: Set("msg-id".to_string()),

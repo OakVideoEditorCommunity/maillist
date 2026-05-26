@@ -147,14 +147,12 @@ impl PasskeyService {
         &self,
         email: Option<&str>,
     ) -> anyhow::Result<(RequestChallengeResponse, String)> {
-        let mut target_user_id: Option<Uuid> = None;
-        let stored = if let Some(email) = email {
+        let (target_user_id, stored) = if let Some(email) = email {
             let user = user::Entity::find()
                 .filter(user::Column::Email.eq(email.to_lowercase()))
                 .one(&self.db)
                 .await?
                 .ok_or_else(|| anyhow::anyhow!("User not found"))?;
-            target_user_id = Some(user.id);
 
             let creds = passkey_credential::Entity::find()
                 .filter(passkey_credential::Column::UserId.eq(user.id))
@@ -164,7 +162,7 @@ impl PasskeyService {
             if creds.is_empty() {
                 return Err(anyhow::anyhow!("No passkey registered for this user"));
             }
-            creds
+            (Some(user.id), creds)
         } else {
             return Err(anyhow::anyhow!("Email is required"));
         };

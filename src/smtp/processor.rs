@@ -1,4 +1,3 @@
-use crate::ai::client::AiClient;
 use crate::config::AppConfig;
 use crate::models::{AppState, email_message, moderation_queue, subscriber};
 use crate::services::ai_service::AiService;
@@ -10,7 +9,7 @@ use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, Qu
 use tracing::{error, info, warn};
 
 pub struct MailPipeline {
-    state: AppState,
+    _state: AppState,
     db: DatabaseConnection,
     config: AppConfig,
 }
@@ -19,7 +18,7 @@ impl MailPipeline {
     pub fn new(state: AppState) -> Self {
         let db = state.db.clone();
         let config = state.config.clone();
-        Self { state, db, config }
+        Self { _state: state, db, config }
     }
 
     pub async fn process(
@@ -72,7 +71,7 @@ impl MailPipeline {
         let message_id = get_header_value(&parsed, "Message-Id")
             .unwrap_or_else(|| format!("<{}@oak-maillist>", uuid::Uuid::new_v4()));
 
-        let mut msg = email_message::ActiveModel {
+        let msg = email_message::ActiveModel {
             id: Set(crate::utils::crypto::generate_uuid()),
             list_id: Set(list.id),
             message_id: Set(message_id.clone()),
@@ -170,7 +169,7 @@ impl MailPipeline {
     }
 
     async fn check_subscriber(&self, list_id: &uuid::Uuid, email: &str) -> anyhow::Result<bool> {
-        use sea_orm::{PaginatorTrait, QuerySelect};
+        use sea_orm::PaginatorTrait;
         let count = subscriber::Entity::find()
             .filter(subscriber::Column::ListId.eq(*list_id))
             .filter(subscriber::Column::Email.eq(email.to_lowercase()))

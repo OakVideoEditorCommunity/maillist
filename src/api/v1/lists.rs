@@ -4,7 +4,7 @@ use crate::utils::response::{ApiError, ApiResponse, ApiResult};
 use axum::{
     Json, Router,
     extract::{Extension, Path, Query, State},
-    routing::{delete, get, post, put},
+    routing::{delete, get, post},
 };
 use sea_orm::ActiveModelTrait;
 use serde::Deserialize;
@@ -412,7 +412,7 @@ async fn list_subscribers(
     Path(id): Path<String>,
     Query(params): Query<HashMap<String, String>>,
 ) -> ApiResult<serde_json::Value> {
-    use sea_orm::PaginatorTrait;
+    
     let svc = crate::services::subscriber_service::SubscriberService::new(state.db.clone());
     let page: u64 = params.get("page").and_then(|v| v.parse().ok()).unwrap_or(1);
     let per_page: u64 = params
@@ -689,8 +689,8 @@ async fn bulk_update_subscribers(
     Path(id): Path<String>,
     Json(req): Json<serde_json::Value>,
 ) -> ApiResult<serde_json::Value> {
-    use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
-    let list_uuid = uuid::Uuid::parse_str(&id).map_err(|e| ApiError {
+    use sea_orm::{ActiveModelTrait, EntityTrait, Set};
+    let _list_uuid = uuid::Uuid::parse_str(&id).map_err(|e| ApiError {
         code: "VALIDATION_ERROR".to_string(),
         message: e.to_string(),
         details: None,

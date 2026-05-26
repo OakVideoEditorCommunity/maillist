@@ -7,8 +7,7 @@ use crate::utils::response::{ApiError, ApiResponse, ApiResult};
 use axum::{
     Json, Router,
     extract::{ConnectInfo, State},
-    http::{HeaderMap, StatusCode},
-    response::IntoResponse,
+    http::HeaderMap,
     routing::{get, post},
 };
 use sea_orm::EntityTrait;

@@ -17,10 +17,10 @@ impl SubscriberService {
         list_id: &str,
         email: &str,
         name: Option<&str>,
-        base_url: &str,
+        _base_url: &str,
     ) -> anyhow::Result<subscriber::Model> {
         let list_uuid = uuid::Uuid::parse_str(list_id)?;
-        let list = mailing_list::Entity::find_by_id(list_uuid)
+        let _list = mailing_list::Entity::find_by_id(list_uuid)
             .one(&self.db)
             .await?
             .ok_or_else(|| anyhow::anyhow!("List not found"))?;

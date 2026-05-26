@@ -4,7 +4,7 @@ use crate::utils::response::{ApiError, ApiResponse, ApiResult};
 use axum::{
     Json, Router,
     extract::{Path, State},
-    routing::{get, post, put},
+    routing::{get, post},
 };
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
 use tera::Context;

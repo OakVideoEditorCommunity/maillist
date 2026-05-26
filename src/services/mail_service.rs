@@ -1,11 +1,11 @@
 use sea_orm::DatabaseConnection;
 
 pub struct MailService {
-    db: DatabaseConnection,
+    _db: DatabaseConnection,
 }
 
 impl MailService {
     pub fn new(db: DatabaseConnection) -> Self {
-        Self { db }
+        Self { _db: db }
     }
 }

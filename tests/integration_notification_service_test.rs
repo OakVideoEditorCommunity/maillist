@@ -3,7 +3,7 @@ use migration::MigratorTrait;
 use oak_maillist::config::AppConfig;
 use oak_maillist::models::AppState;
 use oak_maillist::services::notification_service::NotificationService;
-use sea_orm::{ActiveModelTrait, ConnectionTrait, Database, Set};
+use sea_orm::{ConnectionTrait, Database};
 
 async fn setup_db() -> AppState {
     let db = Database::connect("sqlite::memory:").await.unwrap();

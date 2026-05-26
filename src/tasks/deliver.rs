@@ -1,4 +1,4 @@
-use crate::models::{email_message, moderation_queue, subscriber};
+use crate::models::{email_message, moderation_queue};
 use chrono::Utc;
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use tracing::{error, info};

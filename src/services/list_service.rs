@@ -1,4 +1,4 @@
-use crate::models::{domain, mailing_list};
+use crate::models::mailing_list;
 use chrono::Utc;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,

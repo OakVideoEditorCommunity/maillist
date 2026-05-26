@@ -1,5 +1,5 @@
 use crate::models::AppState;
-use std::io::Write;
+
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 use tracing::{error, info, warn};
@@ -101,7 +101,7 @@ async fn handle_connection(
                 session.to.clear();
             } else {
                 if cmd.starts_with("..") {
-                    session.data.extend_from_slice(&cmd[1..].as_bytes());
+                    session.data.extend_from_slice(&cmd.as_bytes()[1..]);
                 } else {
                     session.data.extend_from_slice(cmd.as_bytes());
                 }

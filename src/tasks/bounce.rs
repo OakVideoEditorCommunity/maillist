@@ -1,7 +1,7 @@
-use crate::models::{bounce_log, email_message, subscriber};
+use crate::models::{bounce_log, subscriber};
 use chrono::Utc;
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 pub struct BounceProcessor {
     db: DatabaseConnection,

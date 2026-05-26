@@ -4,7 +4,7 @@ use crate::utils::response::{ApiError, ApiResponse, ApiResult};
 use axum::{
     Json, Router,
     extract::{Path, State},
-    routing::{delete, get, post, put},
+    routing::{get, post},
 };
 
 pub fn routes() -> Router<AppState> {

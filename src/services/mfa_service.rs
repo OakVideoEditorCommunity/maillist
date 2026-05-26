@@ -2,7 +2,7 @@ use crate::config::AppConfig;
 use crate::models::{totp_credential, user};
 use chrono::Utc;
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
-use totp_rs::{Algorithm, Secret, TOTP};
+use totp_rs::{Algorithm, TOTP};
 
 pub struct MfaService {
     db: DatabaseConnection,

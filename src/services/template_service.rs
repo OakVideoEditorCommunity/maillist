@@ -1,19 +1,19 @@
 use crate::models::email_template;
 use lettre::Transport;
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
-use tera::{Context, Tera};
-use tracing::{error, info};
+use tera::Tera;
+use tracing::info;
 
 pub struct TemplateService {
     db: DatabaseConnection,
-    tera: Tera,
+    _tera: Tera,
 }
 
 impl TemplateService {
     pub fn new(db: DatabaseConnection) -> Self {
         let mut tera = Tera::default();
         tera.autoescape_on(vec!["html"]);
-        Self { db, tera }
+        Self { db, _tera: tera }
     }
 
     pub async fn render_template(

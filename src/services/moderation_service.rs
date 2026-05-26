@@ -1,6 +1,6 @@
-use crate::models::{email_message, moderation_queue, sender_policy};
+use crate::models::{moderation_queue, sender_policy};
 use chrono::Utc;
-use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
+use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, Set};
 
 pub struct ModerationService {
     db: DatabaseConnection,

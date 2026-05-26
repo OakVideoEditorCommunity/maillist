@@ -1,14 +1,12 @@
 use crate::config::AppConfig;
-use crate::models::{AppState, refresh_token, user};
+use crate::models::{refresh_token, user};
 use crate::utils::crypto::{generate_random_token, generate_uuid, hash_password, verify_password};
 use chrono::{Duration, Utc};
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set,
-    TransactionTrait,
 };
 use serde::{Deserialize, Serialize};
-use tracing::error;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenClaims {

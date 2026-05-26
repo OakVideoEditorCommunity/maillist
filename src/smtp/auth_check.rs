@@ -1,4 +1,3 @@
-use tracing::warn;
 
 pub struct AuthCheckResult {
     pub spf_result: SpfResult,

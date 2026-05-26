@@ -1,9 +1,9 @@
 use crate::models::AppState;
-use crate::utils::response::{ApiError, ApiResponse, ApiResult};
+use crate::utils::response::{ApiResponse, ApiResult};
 use axum::{
     Json, Router,
     extract::{Query, State},
-    routing::{get, put},
+    routing::get,
 };
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 use std::collections::HashMap;

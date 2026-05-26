@@ -7,7 +7,7 @@ use axum::{
     extract::{Extension, Path, State},
     routing::{get, post},
 };
-use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+use sea_orm::EntityTrait;
 
 pub fn routes() -> Router<AppState> {
     Router::new()

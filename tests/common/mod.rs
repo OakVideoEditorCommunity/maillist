@@ -6,6 +6,7 @@ use oak_maillist::models::AppState;
 use sea_orm::{ConnectionTrait, Database};
 use std::net::SocketAddr;
 
+#[allow(dead_code)]
 pub async fn setup_db() -> AppState {
     let db = Database::connect("sqlite::memory:")
         .await
@@ -24,6 +25,7 @@ pub async fn setup_db() -> AppState {
     AppState::new(db, config)
 }
 
+#[allow(dead_code)]
 async fn inject_connect_info(mut req: Request, next: Next) -> Response {
     req.extensions_mut()
         .insert(axum::extract::ConnectInfo(SocketAddr::from((
@@ -33,6 +35,7 @@ async fn inject_connect_info(mut req: Request, next: Next) -> Response {
     next.run(req).await
 }
 
+#[allow(dead_code)]
 pub async fn setup_app() -> Router {
     let state = setup_db().await;
     create_router(state).layer(axum::middleware::from_fn(inject_connect_info))

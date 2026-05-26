@@ -2,7 +2,6 @@ mod common;
 use common::setup_db;
 use oak_maillist::services::domain_service::DomainService;
 use oak_maillist::services::list_service::ListService;
-use sea_orm::Set;
 
 #[tokio::test]
 async fn test_list_create_defaults() {
@@ -73,7 +72,7 @@ async fn test_list_public_excludes_inactive() {
         .unwrap();
     list_svc.delete(&list.id.to_string()).await.unwrap();
 
-    let (items, total) = list_svc.list_public(1, 10).await.unwrap();
+    let (_items, total) = list_svc.list_public(1, 10).await.unwrap();
     assert_eq!(total, 0);
 }
 

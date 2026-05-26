@@ -1,11 +1,10 @@
 use crate::config::SmtpOutgoingConfig;
 use crate::models::{mailing_list, subscriber};
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
+use sea_orm::DatabaseConnection;
 use tera::Context;
-use tracing::{error, info};
 
 pub struct NotificationService {
-    db: DatabaseConnection,
+    _db: DatabaseConnection,
     template_svc: super::template_service::TemplateService,
     smtp: SmtpOutgoingConfig,
 }
@@ -14,7 +13,7 @@ impl NotificationService {
     pub fn new(db: DatabaseConnection, smtp: SmtpOutgoingConfig) -> Self {
         let template_svc = super::template_service::TemplateService::new(db.clone());
         Self {
-            db,
+            _db: db,
             template_svc,
             smtp,
         }

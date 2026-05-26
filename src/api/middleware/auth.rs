@@ -4,7 +4,7 @@ use axum::{
     extract::{Request, State},
     http::StatusCode,
     middleware::Next,
-    response::{IntoResponse, Response},
+    response::Response,
 };
 use serde::{Deserialize, Serialize};
 
@@ -50,6 +50,7 @@ pub async fn require_auth(
     Ok(next.run(request).await)
 }
 
+#[allow(dead_code)]
 pub async fn require_admin(
     State(_state): State<AppState>,
     request: Request,
@@ -63,6 +64,7 @@ pub async fn require_admin(
     }
 }
 
+#[allow(dead_code)]
 pub async fn optional_auth(
     State(state): State<AppState>,
     mut request: Request,

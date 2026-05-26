@@ -21,6 +21,7 @@ struct AliyunRequest {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct AliyunResponse {
     #[serde(rename = "Code")]
     code: i32,
@@ -33,6 +34,7 @@ struct AliyunResponse {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct AliyunData {
     #[serde(rename = "RiskLevel")]
     risk_level: String,

@@ -1,6 +1,5 @@
 use crate::api::middleware::auth::Claims;
 use crate::models::AppState;
-use crate::services::auth_service::AuthService;
 use crate::utils::response::{ApiError, ApiResponse, ApiResult};
 use axum::{
     Json, Router,
