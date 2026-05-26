@@ -1,6 +1,6 @@
-use oak_maillist::ai::policy::ModerationPolicy;
-use oak_maillist::ai::parser::parse_ai_response;
 use oak_maillist::ai::aliyun_signer::AliyunV3Signer;
+use oak_maillist::ai::parser::parse_ai_response;
+use oak_maillist::ai::policy::ModerationPolicy;
 
 #[test]
 fn test_moderation_policy_verdict_flagged() {
@@ -65,7 +65,11 @@ fn test_aliyun_v3_signer_produces_required_headers() {
     assert!(header_names.contains(&"x-acs-version"));
     assert!(header_names.contains(&"Authorization"));
 
-    let auth = headers.iter().find(|(k, _)| k == "Authorization").map(|(_, v)| v).unwrap();
+    let auth = headers
+        .iter()
+        .find(|(k, _)| k == "Authorization")
+        .map(|(_, v)| v)
+        .unwrap();
     assert!(auth.starts_with("ACS3-HMAC-SHA256 Credential=ak_id"));
     assert!(auth.contains("Signature="));
 }
@@ -92,12 +96,6 @@ fn test_aliyun_v3_signer_with_query() {
         "ocr".to_string(),
     );
 
-    let headers = signer.sign_request(
-        "GET",
-        "/api/resource",
-        "key=value&foo=bar",
-        &[],
-        b"",
-    );
+    let headers = signer.sign_request("GET", "/api/resource", "key=value&foo=bar", &[], b"");
     assert!(headers.iter().any(|(k, _)| k == "Authorization"));
 }

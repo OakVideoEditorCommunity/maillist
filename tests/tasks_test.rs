@@ -1,12 +1,17 @@
+use migration::MigratorTrait;
 use oak_maillist::config::AppConfig;
 use oak_maillist::models::AppState;
-use migration::MigratorTrait;
-use sea_orm::{ConnectionTrait, ActiveModelTrait, Database, EntityTrait, Set};
+use sea_orm::{ActiveModelTrait, ConnectionTrait, Database, EntityTrait, Set};
 
 async fn setup_db() -> AppState {
     let db = Database::connect("sqlite::memory:").await.unwrap();
     migration::Migrator::up(&db, None).await.unwrap();
-    db.execute(sea_orm::Statement::from_string(sea_orm::DatabaseBackend::Sqlite, "PRAGMA foreign_keys = OFF".to_string())).await.unwrap();
+    db.execute(sea_orm::Statement::from_string(
+        sea_orm::DatabaseBackend::Sqlite,
+        "PRAGMA foreign_keys = OFF".to_string(),
+    ))
+    .await
+    .unwrap();
     let config = AppConfig::load().unwrap_or_else(|_| {
         serde_json::from_str(r#"
         {
@@ -20,7 +25,7 @@ async fn setup_db() -> AppState {
         }
         "#).unwrap()
     });
-    AppState { db, config }
+    AppState::new(db, config)
 }
 
 #[tokio::test]
@@ -41,7 +46,16 @@ async fn test_deliver_task_creates_email_message() {
         updated_at: Set(chrono::Utc::now().into()),
     };
     let domain_model = domain.insert(&state.db).await.unwrap();
-    let list = list_svc.create(&domain_model.id.to_string(), "deliver-test", "del", None, None).await.unwrap();
+    let list = list_svc
+        .create(
+            &domain_model.id.to_string(),
+            "deliver-test",
+            "del",
+            None,
+            None,
+        )
+        .await
+        .unwrap();
 
     let item = oak_maillist::models::moderation_queue::ActiveModel {
         id: Set(oak_maillist::utils::crypto::generate_uuid()),
@@ -99,7 +113,10 @@ async fn test_ai_moderate_task_marks_reviewed() {
         updated_at: Set(chrono::Utc::now().into()),
     };
     let domain_model = domain.insert(&state.db).await.unwrap();
-    let list = list_svc.create(&domain_model.id.to_string(), "ai-test", "ai", None, None).await.unwrap();
+    let list = list_svc
+        .create(&domain_model.id.to_string(), "ai-test", "ai", None, None)
+        .await
+        .unwrap();
 
     let item = oak_maillist::models::moderation_queue::ActiveModel {
         id: Set(oak_maillist::utils::crypto::generate_uuid()),

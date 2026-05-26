@@ -22,7 +22,11 @@ impl AiService {
         Self { client, config }
     }
 
-    pub async fn moderate_email(&self, subject: &str, body: &str) -> anyhow::Result<AiModerationResult> {
+    pub async fn moderate_email(
+        &self,
+        subject: &str,
+        body: &str,
+    ) -> anyhow::Result<AiModerationResult> {
         let result = self.client.analyze(subject, body).await?;
         Ok(result)
     }

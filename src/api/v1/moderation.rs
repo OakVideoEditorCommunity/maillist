@@ -1,11 +1,11 @@
 use crate::api::middleware::auth::Claims;
-use crate::models::{moderation_queue, AppState};
+use crate::models::{AppState, moderation_queue};
 use crate::services::moderation_service::ModerationService;
 use crate::utils::response::{ApiError, ApiResponse, ApiResult};
 use axum::{
+    Json, Router,
     extract::{Extension, Path, State},
     routing::{get, post},
-    Json, Router,
 };
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 

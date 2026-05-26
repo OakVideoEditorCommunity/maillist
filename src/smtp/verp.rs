@@ -16,7 +16,11 @@ impl VerpAddress {
         if let Some(pos) = local.find("-bounces+") {
             let list_local = &local[..pos];
             let token = &local[pos + 9..];
-            return Some((list_local.to_string(), domain.to_string(), token.to_string()));
+            return Some((
+                list_local.to_string(),
+                domain.to_string(),
+                token.to_string(),
+            ));
         }
 
         None

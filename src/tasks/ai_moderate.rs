@@ -1,7 +1,5 @@
 use crate::models::moderation_queue;
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set,
-};
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use tracing::{info, warn};
 
 pub struct AiModerateTask {
@@ -32,7 +30,10 @@ impl AiModerateTask {
             }
         }
 
-        info!("AI moderation review task completed ({} items reviewed)", count);
+        info!(
+            "AI moderation review task completed ({} items reviewed)",
+            count
+        );
         Ok(())
     }
 }

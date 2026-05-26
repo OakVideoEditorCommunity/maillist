@@ -1,8 +1,8 @@
 use crate::config::AppConfig;
-use crate::models::{refresh_token, user, AppState};
+use crate::models::{AppState, refresh_token, user};
 use crate::utils::crypto::{generate_random_token, generate_uuid, hash_password, verify_password};
 use chrono::{Duration, Utc};
-use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set,
     TransactionTrait,
@@ -88,8 +88,7 @@ impl AuthService {
         role: &str,
     ) -> anyhow::Result<String> {
         let now = Utc::now();
-        let exp = now
-            + Duration::seconds(self.config.security.jwt_expiration_seconds);
+        let exp = now + Duration::seconds(self.config.security.jwt_expiration_seconds);
 
         let claims = TokenClaims {
             sub: user_id.to_string(),
@@ -127,8 +126,8 @@ impl AuthService {
         let token = generate_random_token(64);
         let token_hash = sha256::digest(&token);
 
-        let expires_at = Utc::now()
-            + Duration::days(self.config.security.refresh_token_expiration_days);
+        let expires_at =
+            Utc::now() + Duration::days(self.config.security.refresh_token_expiration_days);
 
         let refresh = refresh_token::ActiveModel {
             id: Set(generate_uuid()),
@@ -210,6 +209,10 @@ mod sha256 {
         let mut context = Context::new(&SHA256);
         context.update(input.as_bytes());
         let digest = context.finish();
-        digest.as_ref().iter().map(|b| format!("{:02x}", b)).collect()
+        digest
+            .as_ref()
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect()
     }
 }

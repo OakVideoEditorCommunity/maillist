@@ -1,10 +1,10 @@
+pub mod admin;
 pub mod auth;
-pub mod users;
+pub mod domains;
+pub mod health;
 pub mod lists;
-pub mod subscribers;
 pub mod messages;
 pub mod moderation;
-pub mod domains;
+pub mod subscribers;
 pub mod templates;
-pub mod admin;
-pub mod health;
+pub mod users;

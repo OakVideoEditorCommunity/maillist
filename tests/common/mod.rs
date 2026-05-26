@@ -1,9 +1,9 @@
+use axum::{Router, extract::Request, middleware::Next, response::Response};
+use migration::MigratorTrait;
 use oak_maillist::api::create_router;
 use oak_maillist::config::AppConfig;
 use oak_maillist::models::AppState;
-use migration::MigratorTrait;
 use sea_orm::{ConnectionTrait, Database};
-use axum::{extract::Request, middleware::Next, response::Response, Router};
 use std::net::SocketAddr;
 
 pub async fn setup_db() -> AppState {
@@ -21,11 +21,15 @@ pub async fn setup_db() -> AppState {
     .unwrap();
 
     let config = test_config();
-    AppState { db, config }
+    AppState::new(db, config)
 }
 
 async fn inject_connect_info(mut req: Request, next: Next) -> Response {
-    req.extensions_mut().insert(axum::extract::ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 3000))));
+    req.extensions_mut()
+        .insert(axum::extract::ConnectInfo(SocketAddr::from((
+            [127, 0, 0, 1],
+            3000,
+        ))));
     next.run(req).await
 }
 

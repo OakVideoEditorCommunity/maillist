@@ -1,8 +1,6 @@
 use crate::models::{email_message, moderation_queue, sender_policy};
 use chrono::Utc;
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set,
-};
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 
 pub struct ModerationService {
     db: DatabaseConnection,
@@ -122,7 +120,8 @@ impl ModerationService {
             .await?
             .ok_or_else(|| anyhow::anyhow!("Moderation item not found"))?;
 
-        self.reject(moderation_id, moderated_by, Some("Sender blacklisted")).await?;
+        self.reject(moderation_id, moderated_by, Some("Sender blacklisted"))
+            .await?;
 
         let policy = sender_policy::ActiveModel {
             id: Set(crate::utils::crypto::generate_uuid()),

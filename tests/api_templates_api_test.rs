@@ -1,7 +1,7 @@
 mod common;
-use common::setup_app;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
+use common::setup_app;
 use tower::ServiceExt;
 
 async fn get_token(app: &axum::Router, email: &str) -> String {
@@ -31,7 +31,9 @@ async fn get_token(app: &axum::Router, email: &str) -> String {
         )
         .await
         .unwrap();
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
     let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     json["access_token"].as_str().unwrap().to_string()
 }

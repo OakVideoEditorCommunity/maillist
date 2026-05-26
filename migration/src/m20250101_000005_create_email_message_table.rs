@@ -11,13 +11,26 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(EmailMessage::Table)
                     .if_not_exists()
-                    .col(ColumnDef::new(EmailMessage::Id).uuid().not_null().primary_key())
+                    .col(
+                        ColumnDef::new(EmailMessage::Id)
+                            .uuid()
+                            .not_null()
+                            .primary_key(),
+                    )
                     .col(ColumnDef::new(EmailMessage::ListId).uuid().not_null())
-                    .col(ColumnDef::new(EmailMessage::MessageId).string_len(255).not_null())
+                    .col(
+                        ColumnDef::new(EmailMessage::MessageId)
+                            .string_len(255)
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(EmailMessage::InReplyTo).string_len(255))
                     .col(ColumnDef::new(EmailMessage::References).text())
                     .col(ColumnDef::new(EmailMessage::FromName).string_len(255))
-                    .col(ColumnDef::new(EmailMessage::FromAddr).string_len(255).not_null())
+                    .col(
+                        ColumnDef::new(EmailMessage::FromAddr)
+                            .string_len(255)
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(EmailMessage::ToAddr).string_len(255))
                     .col(ColumnDef::new(EmailMessage::Subject).string_len(512))
                     .col(ColumnDef::new(EmailMessage::SubjectNormalized).string_len(512))
@@ -25,10 +38,24 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(EmailMessage::BodyHtml).text())
                     .col(ColumnDef::new(EmailMessage::RawContent).text())
                     .col(ColumnDef::new(EmailMessage::SizeBytes).integer())
-                    .col(ColumnDef::new(EmailMessage::HasAttachments).boolean().not_null().default(false))
-                    .col(ColumnDef::new(EmailMessage::ReceivedAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(EmailMessage::HasAttachments)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
+                    .col(
+                        ColumnDef::new(EmailMessage::ReceivedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(EmailMessage::ThreadId).uuid())
-                    .col(ColumnDef::new(EmailMessage::IsDeleted).boolean().not_null().default(false))
+                    .col(
+                        ColumnDef::new(EmailMessage::IsDeleted)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
                     .col(ColumnDef::new(EmailMessage::DeletedAt).timestamp_with_time_zone())
                     .col(ColumnDef::new(EmailMessage::DeletedBy).uuid())
                     .col(ColumnDef::new(EmailMessage::DeletedReason).text())

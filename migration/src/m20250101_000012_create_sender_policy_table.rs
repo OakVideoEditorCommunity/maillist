@@ -11,14 +11,36 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(SenderPolicy::Table)
                     .if_not_exists()
-                    .col(ColumnDef::new(SenderPolicy::Id).uuid().not_null().primary_key())
+                    .col(
+                        ColumnDef::new(SenderPolicy::Id)
+                            .uuid()
+                            .not_null()
+                            .primary_key(),
+                    )
                     .col(ColumnDef::new(SenderPolicy::ListId).uuid())
-                    .col(ColumnDef::new(SenderPolicy::EmailPattern).string_len(255).not_null())
-                    .col(ColumnDef::new(SenderPolicy::PolicyType).string_len(20).not_null())
-                    .col(ColumnDef::new(SenderPolicy::Scope).string_len(20).not_null().default("post"))
+                    .col(
+                        ColumnDef::new(SenderPolicy::EmailPattern)
+                            .string_len(255)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SenderPolicy::PolicyType)
+                            .string_len(20)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SenderPolicy::Scope)
+                            .string_len(20)
+                            .not_null()
+                            .default("post"),
+                    )
                     .col(ColumnDef::new(SenderPolicy::Note).string_len(255))
                     .col(ColumnDef::new(SenderPolicy::CreatedBy).uuid())
-                    .col(ColumnDef::new(SenderPolicy::CreatedAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(SenderPolicy::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_sender_policy_list")

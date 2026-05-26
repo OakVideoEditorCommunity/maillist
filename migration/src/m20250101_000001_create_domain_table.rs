@@ -12,15 +12,28 @@ impl MigrationTrait for Migration {
                     .table(Domain::Table)
                     .if_not_exists()
                     .col(ColumnDef::new(Domain::Id).uuid().not_null().primary_key())
-                    .col(ColumnDef::new(Domain::Name).string_len(255).not_null().unique_key())
+                    .col(
+                        ColumnDef::new(Domain::Name)
+                            .string_len(255)
+                            .not_null()
+                            .unique_key(),
+                    )
                     .col(ColumnDef::new(Domain::SmtpHost).string_len(255))
                     .col(ColumnDef::new(Domain::SmtpPort).integer())
                     .col(ColumnDef::new(Domain::SmtpUsername).string_len(255))
                     .col(ColumnDef::new(Domain::SmtpPassword).string_len(255))
                     .col(ColumnDef::new(Domain::DkimSelector).string_len(255))
                     .col(ColumnDef::new(Domain::DkimPrivateKey).text())
-                    .col(ColumnDef::new(Domain::CreatedAt).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(Domain::UpdatedAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(Domain::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Domain::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .to_owned(),
             )
             .await

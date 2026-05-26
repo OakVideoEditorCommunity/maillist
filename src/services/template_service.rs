@@ -1,6 +1,6 @@
 use crate::models::email_template;
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use lettre::Transport;
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use tera::{Context, Tera};
 use tracing::{error, info};
 
@@ -70,12 +70,13 @@ impl TemplateService {
         vars: &tera::Context,
         smtp_config: &crate::config::SmtpOutgoingConfig,
     ) -> anyhow::Result<()> {
+        let (subject_opt, body_opt) = self.render_template(template_name, vars).await?;
+
         if smtp_config.host.is_empty() {
             info!("SMTP outgoing not configured, skipping email to {}", to);
             return Ok(());
         }
 
-        let (subject_opt, body_opt) = self.render_template(template_name, vars).await?;
         let subject = subject_opt.unwrap_or_else(|| "Notification".to_string());
         let body = body_opt.unwrap_or_default();
 
@@ -95,7 +96,10 @@ impl TemplateService {
             .build();
 
         mailer.send(&email)?;
-        info!("Templated email sent to {} using template '{}'", to, template_name);
+        info!(
+            "Templated email sent to {} using template '{}'",
+            to, template_name
+        );
         Ok(())
     }
 }

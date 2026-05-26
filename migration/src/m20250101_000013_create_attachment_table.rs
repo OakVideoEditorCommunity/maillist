@@ -11,7 +11,12 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(Attachment::Table)
                     .if_not_exists()
-                    .col(ColumnDef::new(Attachment::Id).uuid().not_null().primary_key())
+                    .col(
+                        ColumnDef::new(Attachment::Id)
+                            .uuid()
+                            .not_null()
+                            .primary_key(),
+                    )
                     .col(ColumnDef::new(Attachment::MessageId).uuid().not_null())
                     .col(ColumnDef::new(Attachment::Filename).string_len(255))
                     .col(ColumnDef::new(Attachment::ContentType).string_len(100))
@@ -19,7 +24,11 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Attachment::StoragePath).string_len(512))
                     .col(ColumnDef::new(Attachment::ContentId).string_len(255))
                     .col(ColumnDef::new(Attachment::ChecksumSha256).string_len(64))
-                    .col(ColumnDef::new(Attachment::CreatedAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(Attachment::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_attachment_message")

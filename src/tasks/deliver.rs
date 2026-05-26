@@ -1,8 +1,6 @@
 use crate::models::{email_message, moderation_queue, subscriber};
 use chrono::Utc;
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set,
-};
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use tracing::{error, info};
 
 pub struct DeliverTask {

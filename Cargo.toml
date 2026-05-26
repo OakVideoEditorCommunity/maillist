@@ -33,7 +33,7 @@ argon2 = { version = "0.5", features = ["password-hash"] }
 rand = "0.9"
 
 # --- WebAuthn / Passkey ---
-webauthn-rs = { version = "0.5", features = ["danger-allow-state-serialisation"] }
+webauthn-rs = { version = "0.5", features = ["danger-allow-state-serialisation", "danger-credential-internals"] }
 
 # --- TOTP ---
 totp-rs = { version = "5.6", features = ["qr"] }
@@ -85,3 +85,4 @@ migration = { path = "migration" }
 [dev-dependencies]
 tokio-test = "0.4"
 reqwest = { version = "0.12", features = ["json"] }
+webauthn-rs-proto = "0.5"

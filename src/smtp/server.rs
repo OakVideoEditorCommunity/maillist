@@ -89,7 +89,9 @@ async fn handle_connection(
 
                 if let Err(e) = process_email(email, &session.state).await {
                     error!("Failed to process email: {}", e);
-                    writer.write_all(b"451 Requested action aborted: local error\r\n").await?;
+                    writer
+                        .write_all(b"451 Requested action aborted: local error\r\n")
+                        .await?;
                 } else {
                     writer.write_all(b"250 OK\r\n").await?;
                 }
@@ -111,9 +113,7 @@ async fn handle_connection(
         let response = if cmd.len() >= 4 {
             let command = cmd[..4].to_uppercase();
             match command.as_str() {
-                "EHLO" | "HELO" => {
-                    "250-Ok\r\n250-SIZE 10485760\r\n250 PIPELINING\r\n".to_string()
-                }
+                "EHLO" | "HELO" => "250-Ok\r\n250-SIZE 10485760\r\n250 PIPELINING\r\n".to_string(),
                 "MAIL" => {
                     if let Some(addr) = extract_address(cmd) {
                         session.from = Some(addr);

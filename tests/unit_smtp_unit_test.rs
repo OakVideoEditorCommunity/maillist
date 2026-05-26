@@ -1,5 +1,5 @@
-use oak_maillist::smtp::verp::VerpAddress;
 use oak_maillist::smtp::parser::EmailParser;
+use oak_maillist::smtp::verp::VerpAddress;
 
 #[test]
 fn test_verp_encode() {
@@ -48,9 +48,14 @@ fn test_verp_encode_decode_roundtrip() {
 
 #[test]
 fn test_email_parser_simple_text() {
-    let raw = b"From: sender@example.com\r\nTo: recipient@example.com\r\nSubject: Hello\r\n\r\nBody text";
+    let raw =
+        b"From: sender@example.com\r\nTo: recipient@example.com\r\nSubject: Hello\r\n\r\nBody text";
     let parsed = EmailParser::parse(raw).unwrap();
-    let subject = parsed.headers.iter().find(|h| h.get_key() == "Subject").map(|h| h.get_value());
+    let subject = parsed
+        .headers
+        .iter()
+        .find(|h| h.get_key() == "Subject")
+        .map(|h| h.get_value());
     assert_eq!(subject, Some("Hello".to_string()));
 }
 

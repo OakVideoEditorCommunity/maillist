@@ -1,8 +1,6 @@
 use crate::models::{bounce_log, email_message, subscriber};
 use chrono::Utc;
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set,
-};
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use tracing::{error, info, warn};
 
 pub struct BounceProcessor {
@@ -20,7 +18,10 @@ impl BounceProcessor {
         bounce_type: &str,
         reason: &str,
     ) -> anyhow::Result<()> {
-        info!("Processing bounce for token: {}, type: {}", verp_token, bounce_type);
+        info!(
+            "Processing bounce for token: {}, type: {}",
+            verp_token, bounce_type
+        );
 
         let sub = subscriber::Entity::find()
             .filter(subscriber::Column::Token.eq(verp_token))

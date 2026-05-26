@@ -1,5 +1,5 @@
-use regex::Regex;
 use lazy_static::lazy_static;
+use regex::Regex;
 
 lazy_static! {
     static ref EMAIL_REGEX: Regex = Regex::new(

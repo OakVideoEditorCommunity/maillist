@@ -1,7 +1,7 @@
 mod common;
-use common::setup_app;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
+use common::setup_app;
 use tower::ServiceExt;
 
 async fn get_token(app: &axum::Router, email: &str) -> String {
@@ -31,7 +31,9 @@ async fn get_token(app: &axum::Router, email: &str) -> String {
         )
         .await
         .unwrap();
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
     let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     json["access_token"].as_str().unwrap().to_string()
 }
@@ -129,7 +131,7 @@ async fn test_get_domain_invalid_uuid() {
 async fn test_domain_crud() {
     let app = setup_app().await;
     let token = get_token(&app, "domain5@example.com").await;
-    
+
     // Create
     let body = serde_json::json!({"name": "crud.com"});
     let response = app
@@ -145,10 +147,12 @@ async fn test_domain_crud() {
         )
         .await
         .unwrap();
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
     let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     let domain_id = json["data"]["id"].as_str().unwrap();
-    
+
     // Get
     let response = app
         .clone()
@@ -162,7 +166,7 @@ async fn test_domain_crud() {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
-    
+
     // Update
     let body = serde_json::json!({"smtp_host": "smtp.crud.com"});
     let response = app
@@ -179,7 +183,7 @@ async fn test_domain_crud() {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
-    
+
     // Delete
     let response = app
         .clone()

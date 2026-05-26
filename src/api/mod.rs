@@ -1,9 +1,5 @@
 use crate::models::AppState;
-use axum::{
-    middleware::from_fn_with_state,
-    routing::get,
-    Router,
-};
+use axum::{Router, middleware::from_fn_with_state, routing::get};
 use tower_http::{compression::CompressionLayer, cors::CorsLayer, trace::TraceLayer};
 
 mod middleware;

@@ -28,16 +28,20 @@ impl<T: Serialize> ApiResponse<T> {
     }
 
     pub fn with_meta(data: T, meta: serde_json::Value) -> Self {
-        Self { data, meta: Some(meta) }
+        Self {
+            data,
+            meta: Some(meta),
+        }
     }
 }
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let status = match self.code.as_str() {
-            "VALIDATION_ERROR" | "INVALID_REQUEST" | "MFA_INVALID" | "PASSKEY_CHALLENGE_EXPIRED" => {
-                StatusCode::BAD_REQUEST
-            }
+            "VALIDATION_ERROR"
+            | "INVALID_REQUEST"
+            | "MFA_INVALID"
+            | "PASSKEY_CHALLENGE_EXPIRED" => StatusCode::BAD_REQUEST,
             "UNAUTHORIZED" => StatusCode::UNAUTHORIZED,
             "FORBIDDEN" | "MFA_REQUIRED" => StatusCode::FORBIDDEN,
             "NOT_FOUND" => StatusCode::NOT_FOUND,

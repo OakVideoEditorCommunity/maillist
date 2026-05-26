@@ -55,7 +55,10 @@ fn test_extract_local_part_multiple_at() {
 
 #[test]
 fn test_extract_domain() {
-    assert_eq!(email::extract_domain("user@example.com"), Some("example.com"));
+    assert_eq!(
+        email::extract_domain("user@example.com"),
+        Some("example.com")
+    );
     assert_eq!(email::extract_domain("invalid"), None);
 }
 
@@ -258,6 +261,12 @@ fn test_is_valid_domain_too_long() {
 
 #[test]
 fn test_normalize_email() {
-    assert_eq!(validation::normalize_email("User@Example.COM"), "user@example.com");
-    assert_eq!(validation::normalize_email("  User@Example.COM  "), "user@example.com");
+    assert_eq!(
+        validation::normalize_email("User@Example.COM"),
+        "user@example.com"
+    );
+    assert_eq!(
+        validation::normalize_email("  User@Example.COM  "),
+        "user@example.com"
+    );
 }

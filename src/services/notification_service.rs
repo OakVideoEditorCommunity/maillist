@@ -13,7 +13,11 @@ pub struct NotificationService {
 impl NotificationService {
     pub fn new(db: DatabaseConnection, smtp: SmtpOutgoingConfig) -> Self {
         let template_svc = super::template_service::TemplateService::new(db.clone());
-        Self { db, template_svc, smtp }
+        Self {
+            db,
+            template_svc,
+            smtp,
+        }
     }
 
     pub async fn send_subscription_confirm(

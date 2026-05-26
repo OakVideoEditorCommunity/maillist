@@ -1,8 +1,6 @@
 use crate::models::{mailing_list, subscriber};
 use chrono::Utc;
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set,
-};
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use tracing::info;
 
 pub struct SubscriberService {
@@ -59,7 +57,10 @@ impl SubscriberService {
         };
 
         let model = sub.insert(&self.db).await?;
-        info!("Subscriber {} created for list {} with token {}", email, list_id, token);
+        info!(
+            "Subscriber {} created for list {} with token {}",
+            email, list_id, token
+        );
 
         Ok(model)
     }

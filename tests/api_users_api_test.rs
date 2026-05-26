@@ -1,7 +1,7 @@
 mod common;
-use common::setup_app;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
+use common::setup_app;
 use tower::ServiceExt;
 
 async fn get_token(app: &axum::Router, email: &str) -> String {
@@ -35,7 +35,9 @@ async fn get_token(app: &axum::Router, email: &str) -> String {
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
 
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
     let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     json["access_token"].as_str().unwrap().to_string()
 }
@@ -71,7 +73,9 @@ async fn test_get_me_success() {
         .unwrap();
     let status = response.status();
     if status != StatusCode::OK {
-        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let body = String::from_utf8_lossy(&bytes);
         panic!("Unexpected status: {:?}, body: {}", status, body);
     }
@@ -192,7 +196,7 @@ async fn test_list_passkeys() {
 async fn test_get_user() {
     let app = setup_app().await;
     let token = get_token(&app, "userget@example.com").await;
-    
+
     // Get current user to know ID
     let response = app
         .clone()
@@ -205,10 +209,12 @@ async fn test_get_user() {
         )
         .await
         .unwrap();
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
     let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     let user_id = json["data"]["id"].as_str().unwrap();
-    
+
     let response = app
         .oneshot(
             Request::builder()

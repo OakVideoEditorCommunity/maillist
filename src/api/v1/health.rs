@@ -1,6 +1,6 @@
+use crate::models::AppState;
 use axum::{extract::State, response::Json};
 use serde_json::json;
-use crate::models::AppState;
 
 pub async fn health_check(State(state): State<AppState>) -> Json<serde_json::Value> {
     let db_ok = check_db(&state.db).await;

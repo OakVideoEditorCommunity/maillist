@@ -1,16 +1,12 @@
 use crate::ai::client::AiClient;
 use crate::config::AppConfig;
-use crate::models::{
-    email_message, moderation_queue, subscriber, AppState,
-};
+use crate::models::{AppState, email_message, moderation_queue, subscriber};
 use crate::services::ai_service::AiService;
 use crate::smtp::server::IncomingEmail;
 use crate::utils::email::extract_local_part;
 use chrono::Utc;
 use mailparse::ParsedMail;
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set,
-};
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use tracing::{error, info, warn};
 
 pub struct MailPipeline {
@@ -31,11 +27,9 @@ impl MailPipeline {
         email: IncomingEmail,
         parsed: ParsedMail<'_>,
     ) -> anyhow::Result<()> {
-        let from_addr = get_header_value(&parsed, "From")
-            .unwrap_or_else(|| email.from.clone());
+        let from_addr = get_header_value(&parsed, "From").unwrap_or_else(|| email.from.clone());
 
-        let subject = get_header_value(&parsed, "Subject")
-            .unwrap_or_default();
+        let subject = get_header_value(&parsed, "Subject").unwrap_or_default();
 
         let to_addr = email.to.first().cloned().unwrap_or_default();
 
@@ -58,9 +52,7 @@ impl MailPipeline {
             return Ok(());
         }
 
-        let is_subscriber = self
-            .check_subscriber(&list.id, &from_addr)
-            .await?;
+        let is_subscriber = self.check_subscriber(&list.id, &from_addr).await?;
 
         if list.post_policy == "subscriber_only" && !is_subscriber {
             warn!(
@@ -177,11 +169,7 @@ impl MailPipeline {
         Ok(list)
     }
 
-    async fn check_subscriber(
-        &self,
-        list_id: &uuid::Uuid,
-        email: &str,
-    ) -> anyhow::Result<bool> {
+    async fn check_subscriber(&self, list_id: &uuid::Uuid, email: &str) -> anyhow::Result<bool> {
         use sea_orm::{PaginatorTrait, QuerySelect};
         let count = subscriber::Entity::find()
             .filter(subscriber::Column::ListId.eq(*list_id))
@@ -212,7 +200,10 @@ impl MailPipeline {
 
         for sub in subscribers {
             if sub.digest_mode != "none" {
-                info!("Subscriber {} is on digest mode, skipping immediate delivery", sub.email);
+                info!(
+                    "Subscriber {} is on digest mode, skipping immediate delivery",
+                    sub.email
+                );
                 continue;
             }
 
@@ -229,8 +220,8 @@ impl MailPipeline {
         message: &email_message::Model,
         to_email: &str,
     ) -> anyhow::Result<()> {
-        use lettre::message::{header::ContentType, Mailbox, Message};
         use lettre::Transport;
+        use lettre::message::{Mailbox, Message, header::ContentType};
 
         let from = message
             .from_addr
@@ -312,7 +303,9 @@ fn get_body_html(parsed: &ParsedMail) -> Option<String> {
 }
 
 fn get_header_value(parsed: &ParsedMail, key: &str) -> Option<String> {
-    parsed.headers.iter()
+    parsed
+        .headers
+        .iter()
         .find(|h| h.get_key().eq_ignore_ascii_case(key))
         .map(|h| h.get_value())
 }

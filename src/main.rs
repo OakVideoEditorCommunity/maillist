@@ -1,11 +1,11 @@
 use anyhow::Result;
 use axum::serve;
+use migration::MigratorTrait;
 use oak_maillist::{api::create_router, config::AppConfig, models};
 use sea_orm::Database;
-use migration::MigratorTrait;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
-use tracing::{error, info, Level};
+use tracing::{Level, error, info};
 use tracing_subscriber::FmtSubscriber;
 
 #[tokio::main]
@@ -20,7 +20,9 @@ async fn main() -> Result<()> {
     let mut opt = sea_orm::ConnectOptions::new(&config.database.url);
     opt.max_connections(config.database.max_connections)
         .min_connections(config.database.min_connections)
-        .connect_timeout(std::time::Duration::from_secs(config.database.connect_timeout))
+        .connect_timeout(std::time::Duration::from_secs(
+            config.database.connect_timeout,
+        ))
         .idle_timeout(std::time::Duration::from_secs(config.database.idle_timeout))
         .sqlx_logging(false);
     let db = Database::connect(opt).await?;
@@ -29,7 +31,7 @@ async fn main() -> Result<()> {
     migration::Migrator::up(&db, None).await?;
     info!("Database migrations applied");
 
-    let app_state = models::AppState { db: db.clone(), config: config.clone() };
+    let app_state = models::AppState::new(db.clone(), config.clone());
     let app = create_router(app_state.clone());
 
     let addr: SocketAddr = format!("{}:{}", config.server.host, config.server.port).parse()?;
@@ -76,9 +78,7 @@ fn init_tracing(logging: &oak_maillist::config::LoggingConfig) {
         _ => Level::INFO,
     };
 
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(level)
-        .finish();
+    let subscriber = FmtSubscriber::builder().with_max_level(level).finish();
 
     tracing::subscriber::set_global_default(subscriber).expect("Failed to set tracing subscriber");
 }

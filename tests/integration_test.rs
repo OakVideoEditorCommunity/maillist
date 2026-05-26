@@ -1,12 +1,17 @@
+use migration::MigratorTrait;
 use oak_maillist::config::AppConfig;
 use oak_maillist::models::AppState;
-use migration::MigratorTrait;
-use sea_orm::{ConnectionTrait, ActiveModelTrait, Database, EntityTrait, Set};
+use sea_orm::{ActiveModelTrait, ConnectionTrait, Database, EntityTrait, Set};
 
 async fn setup_db() -> AppState {
     let db = Database::connect("sqlite::memory:").await.unwrap();
     migration::Migrator::up(&db, None).await.unwrap();
-    db.execute(sea_orm::Statement::from_string(sea_orm::DatabaseBackend::Sqlite, "PRAGMA foreign_keys = OFF".to_string())).await.unwrap();
+    db.execute(sea_orm::Statement::from_string(
+        sea_orm::DatabaseBackend::Sqlite,
+        "PRAGMA foreign_keys = OFF".to_string(),
+    ))
+    .await
+    .unwrap();
     let config = AppConfig::load().unwrap_or_else(|_| {
         serde_json::from_str(r#"
         {
@@ -20,7 +25,7 @@ async fn setup_db() -> AppState {
         }
         "#).unwrap()
     });
-    AppState { db, config }
+    AppState::new(db, config)
 }
 
 #[tokio::test]
@@ -85,10 +90,16 @@ async fn test_subscriber_service_lifecycle() {
         .await
         .unwrap();
 
-    let sub_svc = oak_maillist::services::subscriber_service::SubscriberService::new(state.db.clone());
+    let sub_svc =
+        oak_maillist::services::subscriber_service::SubscriberService::new(state.db.clone());
 
     let sub = sub_svc
-        .subscribe(&list.id.to_string(), "user@example.com", Some("User"), "http://localhost")
+        .subscribe(
+            &list.id.to_string(),
+            "user@example.com",
+            Some("User"),
+            "http://localhost",
+        )
         .await
         .unwrap();
     assert_eq!(sub.email, "user@example.com");
@@ -160,7 +171,9 @@ async fn test_moderation_service_approve_reject() {
         .unwrap();
     assert_eq!(updated.status, "approved");
 
-    svc.reject(&model.id.to_string(), None, Some("spam")).await.unwrap();
+    svc.reject(&model.id.to_string(), None, Some("spam"))
+        .await
+        .unwrap();
     let updated2 = oak_maillist::models::moderation_queue::Entity::find_by_id(model.id)
         .one(&state.db)
         .await

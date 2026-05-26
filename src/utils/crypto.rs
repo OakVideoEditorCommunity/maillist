@@ -1,6 +1,6 @@
 use argon2::{
-    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
     Argon2,
+    password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng},
 };
 use rand::Rng;
 
@@ -15,8 +15,8 @@ pub fn hash_password(password: &str) -> anyhow::Result<String> {
 }
 
 pub fn verify_password(password: &str, hash: &str) -> anyhow::Result<bool> {
-    let parsed_hash = PasswordHash::new(hash)
-        .map_err(|e| anyhow::anyhow!("Invalid password hash: {}", e))?;
+    let parsed_hash =
+        PasswordHash::new(hash).map_err(|e| anyhow::anyhow!("Invalid password hash: {}", e))?;
     let argon2 = Argon2::default();
     Ok(argon2
         .verify_password(password.as_bytes(), &parsed_hash)

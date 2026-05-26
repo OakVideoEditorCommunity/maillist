@@ -1,9 +1,9 @@
 mod common;
 use common::setup_db;
 use oak_maillist::services::archive_service::ArchiveService;
-use sea_orm::EntityTrait;
 use oak_maillist::services::domain_service::DomainService;
 use oak_maillist::services::list_service::ListService;
+use sea_orm::EntityTrait;
 use sea_orm::{ActiveModelTrait, Set};
 
 async fn create_test_message(
@@ -46,14 +46,23 @@ async fn test_build_threads_no_reply_headers() {
     let domain_svc = DomainService::new(state.db.clone());
     let domain = domain_svc.create("arch.com").await.unwrap();
     let list_svc = ListService::new(state.db.clone());
-    let list = list_svc.create(&domain.id.to_string(), "l", "l", None, None).await.unwrap();
+    let list = list_svc
+        .create(&domain.id.to_string(), "l", "l", None, None)
+        .await
+        .unwrap();
     let archive_svc = ArchiveService::new(state.db.clone());
-    
+
     let msg = create_test_message(&state.db, list.id, Some("msg-1"), None, "Hello", "Body").await;
-    archive_svc.build_threads(&list.id.to_string()).await.unwrap();
-    
+    archive_svc
+        .build_threads(&list.id.to_string())
+        .await
+        .unwrap();
+
     let updated = oak_maillist::models::email_message::Entity::find_by_id(msg.id)
-        .one(&state.db).await.unwrap().unwrap();
+        .one(&state.db)
+        .await
+        .unwrap()
+        .unwrap();
     assert_eq!(updated.thread_id, Some(msg.id));
 }
 
@@ -63,16 +72,44 @@ async fn test_build_threads_with_in_reply_to() {
     let domain_svc = DomainService::new(state.db.clone());
     let domain = domain_svc.create("arch2.com").await.unwrap();
     let list_svc = ListService::new(state.db.clone());
-    let list = list_svc.create(&domain.id.to_string(), "l", "l", None, None).await.unwrap();
+    let list = list_svc
+        .create(&domain.id.to_string(), "l", "l", None, None)
+        .await
+        .unwrap();
     let archive_svc = ArchiveService::new(state.db.clone());
-    
-    let parent = create_test_message(&state.db, list.id, Some("parent-id"), None, "Parent", "Body").await;
-    archive_svc.build_threads(&list.id.to_string()).await.unwrap();
-    let child = create_test_message(&state.db, list.id, Some("child-id"), Some("parent-id"), "Re: Parent", "Reply").await;
-    archive_svc.build_threads(&list.id.to_string()).await.unwrap();
-    
+
+    let parent = create_test_message(
+        &state.db,
+        list.id,
+        Some("parent-id"),
+        None,
+        "Parent",
+        "Body",
+    )
+    .await;
+    archive_svc
+        .build_threads(&list.id.to_string())
+        .await
+        .unwrap();
+    let child = create_test_message(
+        &state.db,
+        list.id,
+        Some("child-id"),
+        Some("parent-id"),
+        "Re: Parent",
+        "Reply",
+    )
+    .await;
+    archive_svc
+        .build_threads(&list.id.to_string())
+        .await
+        .unwrap();
+
     let updated = oak_maillist::models::email_message::Entity::find_by_id(child.id)
-        .one(&state.db).await.unwrap().unwrap();
+        .one(&state.db)
+        .await
+        .unwrap()
+        .unwrap();
     assert_eq!(updated.thread_id, Some(parent.id));
 }
 
@@ -82,13 +119,27 @@ async fn test_search_by_keyword() {
     let domain_svc = DomainService::new(state.db.clone());
     let domain = domain_svc.create("search.com").await.unwrap();
     let list_svc = ListService::new(state.db.clone());
-    let list = list_svc.create(&domain.id.to_string(), "l", "l", None, None).await.unwrap();
+    let list = list_svc
+        .create(&domain.id.to_string(), "l", "l", None, None)
+        .await
+        .unwrap();
     let archive_svc = ArchiveService::new(state.db.clone());
-    
-    create_test_message(&state.db, list.id, None, None, "Rust topic", "Rust is great").await;
+
+    create_test_message(
+        &state.db,
+        list.id,
+        None,
+        None,
+        "Rust topic",
+        "Rust is great",
+    )
+    .await;
     create_test_message(&state.db, list.id, None, None, "Other", "Something else").await;
-    
-    let results = archive_svc.search(&list.id.to_string(), "Rust", None).await.unwrap();
+
+    let results = archive_svc
+        .search(&list.id.to_string(), "Rust", None)
+        .await
+        .unwrap();
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].subject, Some("Rust topic".to_string()));
 }
@@ -99,9 +150,12 @@ async fn test_search_from_filter() {
     let domain_svc = DomainService::new(state.db.clone());
     let domain = domain_svc.create("search2.com").await.unwrap();
     let list_svc = ListService::new(state.db.clone());
-    let list = list_svc.create(&domain.id.to_string(), "l", "l", None, None).await.unwrap();
+    let list = list_svc
+        .create(&domain.id.to_string(), "l", "l", None, None)
+        .await
+        .unwrap();
     let archive_svc = ArchiveService::new(state.db.clone());
-    
+
     let mut msg = oak_maillist::models::email_message::ActiveModel {
         id: Set(oak_maillist::utils::crypto::generate_uuid()),
         list_id: Set(list.id),
@@ -126,8 +180,11 @@ async fn test_search_from_filter() {
         deleted_reason: Set(None),
     };
     msg.insert(&state.db).await.unwrap();
-    
-    let results = archive_svc.search(&list.id.to_string(), "Hello", Some("alice@example.com")).await.unwrap();
+
+    let results = archive_svc
+        .search(&list.id.to_string(), "Hello", Some("alice@example.com"))
+        .await
+        .unwrap();
     assert_eq!(results.len(), 1);
 }
 
@@ -137,23 +194,37 @@ async fn test_get_thread_messages_excludes_deleted() {
     let domain_svc = DomainService::new(state.db.clone());
     let domain = domain_svc.create("thread.com").await.unwrap();
     let list_svc = ListService::new(state.db.clone());
-    let list = list_svc.create(&domain.id.to_string(), "l", "l", None, None).await.unwrap();
+    let list = list_svc
+        .create(&domain.id.to_string(), "l", "l", None, None)
+        .await
+        .unwrap();
     let archive_svc = ArchiveService::new(state.db.clone());
-    
+
     let msg = create_test_message(&state.db, list.id, None, None, "T", "B").await;
     let msg_id = msg.id;
     let mut active: oak_maillist::models::email_message::ActiveModel = msg.into();
     active.thread_id = Set(Some(msg_id));
     active.update(&state.db).await.unwrap();
-    
-    let results = archive_svc.get_thread_messages(&msg_id.to_string()).await.unwrap();
+
+    let results = archive_svc
+        .get_thread_messages(&msg_id.to_string())
+        .await
+        .unwrap();
     assert_eq!(results.len(), 1);
-    
-    let mut del: oak_maillist::models::email_message::ActiveModel = oak_maillist::models::email_message::Entity::find_by_id(msg_id)
-        .one(&state.db).await.unwrap().unwrap().into();
+
+    let mut del: oak_maillist::models::email_message::ActiveModel =
+        oak_maillist::models::email_message::Entity::find_by_id(msg_id)
+            .one(&state.db)
+            .await
+            .unwrap()
+            .unwrap()
+            .into();
     del.is_deleted = Set(true);
     del.update(&state.db).await.unwrap();
-    
-    let results = archive_svc.get_thread_messages(&msg_id.to_string()).await.unwrap();
+
+    let results = archive_svc
+        .get_thread_messages(&msg_id.to_string())
+        .await
+        .unwrap();
     assert_eq!(results.len(), 0);
 }

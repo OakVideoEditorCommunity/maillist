@@ -1,8 +1,6 @@
 use crate::models::{auth_session, bounce_log, email_message, moderation_queue, refresh_token};
 use chrono::{Duration, Utc};
-use sea_orm::{
-    ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
-};
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use tracing::info;
 
 pub struct CleanupTask {
@@ -31,19 +29,28 @@ impl CleanupTask {
             .filter(moderation_queue::Column::CreatedAt.lt(cutoff))
             .exec(&self.db)
             .await?;
-        info!("Deleted {} old moderation queue entries", mq_deleted.rows_affected);
+        info!(
+            "Deleted {} old moderation queue entries",
+            mq_deleted.rows_affected
+        );
 
         let session_deleted = auth_session::Entity::delete_many()
             .filter(auth_session::Column::ExpiresAt.lt(Utc::now()))
             .exec(&self.db)
             .await?;
-        info!("Deleted {} expired auth sessions", session_deleted.rows_affected);
+        info!(
+            "Deleted {} expired auth sessions",
+            session_deleted.rows_affected
+        );
 
         let token_deleted = refresh_token::Entity::delete_many()
             .filter(refresh_token::Column::ExpiresAt.lt(Utc::now()))
             .exec(&self.db)
             .await?;
-        info!("Deleted {} expired refresh tokens", token_deleted.rows_affected);
+        info!(
+            "Deleted {} expired refresh tokens",
+            token_deleted.rows_affected
+        );
 
         let bounce_deleted = bounce_log::Entity::delete_many()
             .filter(bounce_log::Column::CreatedAt.lt(cutoff))

@@ -11,18 +11,51 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(PasskeyCredential::Table)
                     .if_not_exists()
-                    .col(ColumnDef::new(PasskeyCredential::Id).uuid().not_null().primary_key())
+                    .col(
+                        ColumnDef::new(PasskeyCredential::Id)
+                            .uuid()
+                            .not_null()
+                            .primary_key(),
+                    )
                     .col(ColumnDef::new(PasskeyCredential::UserId).uuid().not_null())
-                    .col(ColumnDef::new(PasskeyCredential::CredentialId).binary().not_null().unique_key())
-                    .col(ColumnDef::new(PasskeyCredential::PublicKey).binary().not_null())
-                    .col(ColumnDef::new(PasskeyCredential::SignCount).big_integer().not_null().default(0))
+                    .col(
+                        ColumnDef::new(PasskeyCredential::CredentialId)
+                            .binary()
+                            .not_null()
+                            .unique_key(),
+                    )
+                    .col(
+                        ColumnDef::new(PasskeyCredential::PublicKey)
+                            .binary()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(PasskeyCredential::SignCount)
+                            .big_integer()
+                            .not_null()
+                            .default(0),
+                    )
                     .col(ColumnDef::new(PasskeyCredential::Aaguid).binary())
                     .col(ColumnDef::new(PasskeyCredential::DeviceName).string_len(255))
                     .col(ColumnDef::new(PasskeyCredential::Transports).json())
-                    .col(ColumnDef::new(PasskeyCredential::IsBackupEligible).boolean().not_null().default(false))
-                    .col(ColumnDef::new(PasskeyCredential::IsBackup).boolean().not_null().default(false))
+                    .col(
+                        ColumnDef::new(PasskeyCredential::IsBackupEligible)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
+                    .col(
+                        ColumnDef::new(PasskeyCredential::IsBackup)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
                     .col(ColumnDef::new(PasskeyCredential::LastUsedAt).timestamp_with_time_zone())
-                    .col(ColumnDef::new(PasskeyCredential::CreatedAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(PasskeyCredential::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_passkey_user")

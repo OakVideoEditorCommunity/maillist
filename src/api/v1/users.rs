@@ -3,9 +3,9 @@ use crate::models::AppState;
 use crate::services::auth_service::AuthService;
 use crate::utils::response::{ApiError, ApiResponse, ApiResult};
 use axum::{
+    Json, Router,
     extract::{Extension, Path, State},
     routing::{delete, get, put},
-    Json, Router,
 };
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
 
@@ -17,7 +17,10 @@ pub fn routes() -> Router<AppState> {
         .route("/me/sessions/{id}", delete(revoke_session))
         .route("/me/mfa", get(get_mfa_status))
         .route("/me/passkeys", get(list_passkeys))
-        .route("/me/passkeys/{id}", delete(delete_passkey).put(rename_passkey))
+        .route(
+            "/me/passkeys/{id}",
+            delete(delete_passkey).put(rename_passkey),
+        )
         .route("/{id}", get(get_user).put(update_user).delete(delete_user))
         .route("/", get(list_users))
 }
@@ -249,15 +252,18 @@ async fn list_sessions(
             request_id: None,
         })?;
 
-    let result: Vec<_> = sessions.into_iter().map(|s| {
-        serde_json::json!({
-            "id": s.id,
-            "ip_address": s.ip_address,
-            "user_agent": s.user_agent,
-            "expires_at": s.expires_at,
-            "created_at": s.created_at,
+    let result: Vec<_> = sessions
+        .into_iter()
+        .map(|s| {
+            serde_json::json!({
+                "id": s.id,
+                "ip_address": s.ip_address,
+                "user_agent": s.user_agent,
+                "expires_at": s.expires_at,
+                "created_at": s.created_at,
+            })
         })
-    }).collect();
+        .collect();
 
     Ok(Json(ApiResponse::new(result)))
 }
@@ -383,14 +389,17 @@ async fn list_passkeys(
             request_id: None,
         })?;
 
-    let result: Vec<_> = items.into_iter().map(|p| {
-        serde_json::json!({
-            "id": p.id,
-            "credential_id": p.credential_id,
-            "device_name": p.device_name,
-            "created_at": p.created_at,
+    let result: Vec<_> = items
+        .into_iter()
+        .map(|p| {
+            serde_json::json!({
+                "id": p.id,
+                "credential_id": p.credential_id,
+                "device_name": p.device_name,
+                "created_at": p.created_at,
+            })
         })
-    }).collect();
+        .collect();
 
     Ok(Json(ApiResponse::new(result)))
 }
@@ -643,15 +652,18 @@ async fn list_users(State(state): State<AppState>) -> ApiResult<Vec<serde_json::
             request_id: None,
         })?;
 
-    let result: Vec<_> = users.into_iter().map(|u| {
-        serde_json::json!({
-            "id": u.id,
-            "email": u.email,
-            "name": u.name,
-            "is_site_admin": u.is_site_admin,
-            "created_at": u.created_at,
+    let result: Vec<_> = users
+        .into_iter()
+        .map(|u| {
+            serde_json::json!({
+                "id": u.id,
+                "email": u.email,
+                "name": u.name,
+                "is_site_admin": u.is_site_admin,
+                "created_at": u.created_at,
+            })
         })
-    }).collect();
+        .collect();
 
     Ok(Json(ApiResponse::new(result)))
 }

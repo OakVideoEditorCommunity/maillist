@@ -1,7 +1,7 @@
 mod common;
-use common::setup_app;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
+use common::setup_app;
 use tower::ServiceExt;
 
 async fn register_and_login(app: &axum::Router, email: &str, password: &str) -> String {
@@ -35,7 +35,9 @@ async fn register_and_login(app: &axum::Router, email: &str, password: &str) -> 
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
 
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
     let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     json["access_token"].as_str().unwrap().to_string()
 }
@@ -221,7 +223,7 @@ async fn test_magic_link_callback_stub() {
 }
 
 #[tokio::test]
-async fn test_passkey_register_stub() {
+async fn test_passkey_register_requires_auth() {
     let app = setup_app().await;
     let response = app
         .oneshot(
@@ -229,16 +231,16 @@ async fn test_passkey_register_stub() {
                 .method("POST")
                 .uri("/api/v1/auth/passkey/register")
                 .header("content-type", "application/json")
-                .body(Body::from("{}"))
+                .body(Body::from(r#"{"challenge_id":"x","credential":{"id":"x","rawId":"eQ","response":{"attestationObject":"eQ","clientDataJSON":"eQ"},"type":"public-key"}}"#))
                 .unwrap(),
         )
         .await
         .unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 }
 
 #[tokio::test]
-async fn test_passkey_login_stub() {
+async fn test_passkey_login_validation_error() {
     let app = setup_app().await;
     let response = app
         .oneshot(
@@ -251,5 +253,6 @@ async fn test_passkey_login_stub() {
         )
         .await
         .unwrap();
-    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    // Missing required fields causes JSON deserialization error (422 in axum 0.8)
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
 }

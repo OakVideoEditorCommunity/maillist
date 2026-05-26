@@ -1,7 +1,7 @@
 mod common;
-use common::setup_app;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
+use common::setup_app;
 use tower::ServiceExt;
 
 async fn get_token(app: &axum::Router, email: &str) -> String {
@@ -31,7 +31,9 @@ async fn get_token(app: &axum::Router, email: &str) -> String {
         )
         .await
         .unwrap();
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
     let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     json["access_token"].as_str().unwrap().to_string()
 }
@@ -51,7 +53,9 @@ async fn create_domain_and_list(app: &axum::Router, token: &str) -> (String, Str
         )
         .await
         .unwrap();
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
     let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     let domain_id = json["data"]["id"].as_str().unwrap().to_string();
 
@@ -69,7 +73,9 @@ async fn create_domain_and_list(app: &axum::Router, token: &str) -> (String, Str
         )
         .await
         .unwrap();
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
     let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     let list_id = json["data"]["id"].as_str().unwrap().to_string();
 
@@ -200,7 +206,9 @@ async fn test_list_subscribe_and_confirm() {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
     let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     let sub_token = json["data"]["token"].as_str().unwrap();
 

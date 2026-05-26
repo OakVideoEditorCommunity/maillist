@@ -1,9 +1,7 @@
 use crate::config::AppConfig;
 use crate::models::{totp_credential, user};
 use chrono::Utc;
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set,
-};
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use totp_rs::{Algorithm, Secret, TOTP};
 
 pub struct MfaService {
@@ -13,7 +11,10 @@ pub struct MfaService {
 
 impl MfaService {
     pub fn new(db: DatabaseConnection, config: AppConfig) -> Self {
-        Self { db, _config: config }
+        Self {
+            db,
+            _config: config,
+        }
     }
 
     pub async fn setup_totp(
@@ -89,8 +90,11 @@ impl MfaService {
         active.backup_codes = Set(Some(backup_codes_json));
         active.update(&self.db).await?;
 
-        let mut user_active: user::ActiveModel =
-            user::Entity::find_by_id(user_uuid).one(&self.db).await?.unwrap().into();
+        let mut user_active: user::ActiveModel = user::Entity::find_by_id(user_uuid)
+            .one(&self.db)
+            .await?
+            .unwrap()
+            .into();
         user_active.mfa_enabled = Set(true);
         user_active.update(&self.db).await?;
 
@@ -136,8 +140,11 @@ impl MfaService {
             .exec(&self.db)
             .await?;
 
-        let mut user_active: user::ActiveModel =
-            user::Entity::find_by_id(user_uuid).one(&self.db).await?.unwrap().into();
+        let mut user_active: user::ActiveModel = user::Entity::find_by_id(user_uuid)
+            .one(&self.db)
+            .await?
+            .unwrap()
+            .into();
         user_active.mfa_enabled = Set(false);
         user_active.update(&self.db).await?;
 
@@ -185,8 +192,8 @@ impl MfaService {
     }
 
     fn check_totp_code(&self, secret: &str, code: &str) -> anyhow::Result<bool> {
-        let secret_bytes = base32::decode(secret)
-            .ok_or_else(|| anyhow::anyhow!("Invalid base32 secret"))?;
+        let secret_bytes =
+            base32::decode(secret).ok_or_else(|| anyhow::anyhow!("Invalid base32 secret"))?;
 
         let totp = TOTP::new(
             Algorithm::SHA1,

@@ -41,7 +41,12 @@ impl AuthChecker {
         Self
     }
 
-    pub async fn check(&self, _remote_ip: &str, _from_domain: &str, _envelope_from: &str) -> AuthCheckResult {
+    pub async fn check(
+        &self,
+        _remote_ip: &str,
+        _from_domain: &str,
+        _envelope_from: &str,
+    ) -> AuthCheckResult {
         // TODO: Implement actual SPF/DKIM/DMARC checks
         // This requires DNS queries and cryptographic verification
         // For now, return permissive results

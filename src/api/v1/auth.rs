@@ -2,17 +2,19 @@ use crate::api::middleware::auth::Claims;
 use crate::models::AppState;
 use crate::services::auth_service::AuthService;
 use crate::services::mfa_service::MfaService;
+use crate::services::passkey_service::PasskeyService;
 use crate::utils::response::{ApiError, ApiResponse, ApiResult};
 use axum::{
+    Json, Router,
     extract::{ConnectInfo, State},
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
     routing::{get, post},
-    Json, Router,
 };
 use sea_orm::EntityTrait;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
+use webauthn_rs::prelude::{Base64UrlSafeData, PublicKeyCredential, RegisterPublicKeyCredential};
 
 pub fn routes() -> Router<AppState> {
     Router::new()
@@ -29,7 +31,10 @@ pub fn routes() -> Router<AppState> {
         .route("/mfa/totp/verify-setup", post(totp_verify_setup))
         .route("/mfa/totp/verify", post(totp_verify))
         .route("/mfa/totp/disable", post(totp_disable))
-        .route("/mfa/totp/regenerate-backup-codes", post(totp_regenerate_backup))
+        .route(
+            "/mfa/totp/regenerate-backup-codes",
+            post(totp_regenerate_backup),
+        )
         .route("/mfa/totp/backup-codes", get(totp_backup_codes))
         .route("/passkey/register-options", post(passkey_register_options))
         .route("/passkey/register", post(passkey_register))
@@ -70,6 +75,28 @@ pub struct MfaRequiredResponse {
     pub session_token: String,
     pub available_methods: Vec<String>,
     pub expires_in: i64,
+}
+
+#[derive(Deserialize)]
+pub struct PasskeyRegisterOptionsRequest {
+    pub device_name: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct PasskeyRegisterRequest {
+    pub challenge_id: String,
+    pub credential: RegisterPublicKeyCredential,
+}
+
+#[derive(Deserialize)]
+pub struct PasskeyAuthOptionsRequest {
+    pub email: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct PasskeyLoginRequest {
+    pub challenge_id: String,
+    pub credential: PublicKeyCredential,
 }
 
 fn extract_bearer(headers: &HeaderMap) -> Option<&str> {
@@ -133,6 +160,7 @@ async fn register(
         "id": user.id,
         "email": user.email,
         "name": user.name,
+        "language": user.language,
         "created_at": user.created_at,
     }))))
 }
@@ -193,6 +221,7 @@ async fn login(
             "id": user.id,
             "email": user.email,
             "name": user.name,
+            "language": user.language,
         }
     })))
 }
@@ -311,9 +340,7 @@ async fn send_magic_link(
     }))))
 }
 
-async fn magic_link_callback(
-    State(_state): State<AppState>,
-) -> ApiResult<TokenResponse> {
+async fn magic_link_callback(State(_state): State<AppState>) -> ApiResult<TokenResponse> {
     Err(ApiError {
         code: "NOT_IMPLEMENTED".to_string(),
         message: "Magic link not yet implemented".to_string(),
@@ -411,12 +438,15 @@ async fn totp_verify(
     }
 
     let auth = AuthService::new(state.db.clone(), state.config.clone());
-    let user = crate::models::user::Entity::find_by_id(uuid::Uuid::parse_str(user_id).map_err(|e| ApiError {
-        code: "VALIDATION_ERROR".to_string(),
-        message: e.to_string(),
-        details: None,
-        request_id: None,
-    })?)
+    let user =
+        crate::models::user::Entity::find_by_id(uuid::Uuid::parse_str(user_id).map_err(|e| {
+            ApiError {
+                code: "VALIDATION_ERROR".to_string(),
+                message: e.to_string(),
+                details: None,
+                request_id: None,
+            }
+        })?)
         .one(&state.db)
         .await
         .map_err(|e| ApiError {
@@ -530,41 +560,162 @@ async fn totp_backup_codes(
 }
 
 async fn passkey_register_options(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
+    headers: HeaderMap,
 ) -> ApiResult<serde_json::Value> {
+    let claims = verify_token(&state, &headers)?;
+    let user_id = uuid::Uuid::parse_str(&claims.sub).map_err(|e| ApiError {
+        code: "VALIDATION_ERROR".to_string(),
+        message: e.to_string(),
+        details: None,
+        request_id: None,
+    })?;
+
+    let Some(webauthn) = state.webauthn.clone() else {
+        return Err(ApiError {
+            code: "NOT_CONFIGURED".to_string(),
+            message: "WebAuthn is not configured".to_string(),
+            details: None,
+            request_id: None,
+        });
+    };
+
+    let svc =
+        PasskeyService::from_state(state.db.clone(), webauthn, state.passkey_challenges.clone());
+    let (ccr, challenge_id) = svc
+        .start_registration(user_id, &claims.email, None)
+        .await
+        .map_err(|e| ApiError {
+            code: "INTERNAL_ERROR".to_string(),
+            message: e.to_string(),
+            details: None,
+            request_id: None,
+        })?;
+
     Ok(Json(ApiResponse::new(serde_json::json!({
-        "message": "Passkey not yet implemented"
+        "challenge_id": challenge_id,
+        "options": ccr,
     }))))
 }
 
 async fn passkey_register(
-    State(_state): State<AppState>,
-    Json(_req): Json<serde_json::Value>,
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(req): Json<PasskeyRegisterRequest>,
 ) -> ApiResult<serde_json::Value> {
+    let _claims = verify_token(&state, &headers)?;
+
+    let Some(webauthn) = state.webauthn.clone() else {
+        return Err(ApiError {
+            code: "NOT_CONFIGURED".to_string(),
+            message: "WebAuthn is not configured".to_string(),
+            details: None,
+            request_id: None,
+        });
+    };
+
+    let svc =
+        PasskeyService::from_state(state.db.clone(), webauthn, state.passkey_challenges.clone());
+    let cred = svc
+        .finish_registration(&req.challenge_id, &req.credential)
+        .await
+        .map_err(|e| ApiError {
+            code: "UNAUTHORIZED".to_string(),
+            message: e.to_string(),
+            details: None,
+            request_id: None,
+        })?;
+
+    let cred_id_b64 = Base64UrlSafeData::from(cred.credential_id.clone());
     Ok(Json(ApiResponse::new(serde_json::json!({
-        "message": "Passkey not yet implemented"
+        "id": cred.id,
+        "credential_id": cred_id_b64,
+        "created_at": cred.created_at,
     }))))
 }
 
 async fn passkey_auth_options(
-    State(_state): State<AppState>,
-    Json(_req): Json<serde_json::Value>,
+    State(state): State<AppState>,
+    Json(req): Json<PasskeyAuthOptionsRequest>,
 ) -> ApiResult<serde_json::Value> {
+    let Some(webauthn) = state.webauthn.clone() else {
+        return Err(ApiError {
+            code: "NOT_CONFIGURED".to_string(),
+            message: "WebAuthn is not configured".to_string(),
+            details: None,
+            request_id: None,
+        });
+    };
+
+    let svc =
+        PasskeyService::from_state(state.db.clone(), webauthn, state.passkey_challenges.clone());
+    let (rcr, challenge_id) = svc
+        .start_authentication(req.email.as_deref())
+        .await
+        .map_err(|e| ApiError {
+            code: "NOT_FOUND".to_string(),
+            message: e.to_string(),
+            details: None,
+            request_id: None,
+        })?;
+
     Ok(Json(ApiResponse::new(serde_json::json!({
-        "message": "Passkey not yet implemented"
+        "challenge_id": challenge_id,
+        "options": rcr,
     }))))
 }
 
 async fn passkey_login(
-    State(_state): State<AppState>,
-    Json(_req): Json<serde_json::Value>,
+    State(state): State<AppState>,
+    Json(req): Json<PasskeyLoginRequest>,
 ) -> ApiResult<TokenResponse> {
-    Err(ApiError {
-        code: "NOT_IMPLEMENTED".to_string(),
-        message: "Passkey not yet implemented".to_string(),
-        details: None,
-        request_id: None,
-    })
+    let Some(webauthn) = state.webauthn.clone() else {
+        return Err(ApiError {
+            code: "NOT_CONFIGURED".to_string(),
+            message: "WebAuthn is not configured".to_string(),
+            details: None,
+            request_id: None,
+        });
+    };
+
+    let svc =
+        PasskeyService::from_state(state.db.clone(), webauthn, state.passkey_challenges.clone());
+    let (user_id, email) = svc
+        .finish_authentication(&req.challenge_id, &req.credential)
+        .await
+        .map_err(|e| ApiError {
+            code: "UNAUTHORIZED".to_string(),
+            message: e.to_string(),
+            details: None,
+            request_id: None,
+        })?;
+
+    let auth = AuthService::new(state.db.clone(), state.config.clone());
+    let access_token = auth
+        .generate_access_token(&user_id.to_string(), &email, "subscriber")
+        .map_err(|e| ApiError {
+            code: "INTERNAL_ERROR".to_string(),
+            message: e.to_string(),
+            details: None,
+            request_id: None,
+        })?;
+
+    let refresh_token = auth
+        .create_refresh_token(&user_id.to_string(), None)
+        .await
+        .map_err(|e| ApiError {
+            code: "INTERNAL_ERROR".to_string(),
+            message: e.to_string(),
+            details: None,
+            request_id: None,
+        })?;
+
+    Ok(Json(ApiResponse::new(TokenResponse {
+        access_token,
+        refresh_token,
+        token_type: "Bearer".to_string(),
+        expires_in: state.config.security.jwt_expiration_seconds,
+    })))
 }
 
 async fn mfa_verify(
@@ -605,12 +756,15 @@ async fn mfa_verify(
     }
 
     let auth = AuthService::new(state.db.clone(), state.config.clone());
-    let user = crate::models::user::Entity::find_by_id(uuid::Uuid::parse_str(user_id).map_err(|e| ApiError {
-        code: "VALIDATION_ERROR".to_string(),
-        message: e.to_string(),
-        details: None,
-        request_id: None,
-    })?)
+    let user =
+        crate::models::user::Entity::find_by_id(uuid::Uuid::parse_str(user_id).map_err(|e| {
+            ApiError {
+                code: "VALIDATION_ERROR".to_string(),
+                message: e.to_string(),
+                details: None,
+                request_id: None,
+            }
+        })?)
         .one(&state.db)
         .await
         .map_err(|e| ApiError {

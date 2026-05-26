@@ -1,12 +1,17 @@
+use migration::MigratorTrait;
 use oak_maillist::config::AppConfig;
 use oak_maillist::models::AppState;
-use migration::MigratorTrait;
 use sea_orm::{ConnectionTrait, Database};
 
 async fn setup_db() -> AppState {
     let db = Database::connect("sqlite::memory:").await.unwrap();
     migration::Migrator::up(&db, None).await.unwrap();
-    db.execute(sea_orm::Statement::from_string(sea_orm::DatabaseBackend::Sqlite, "PRAGMA foreign_keys = OFF".to_string())).await.unwrap();
+    db.execute(sea_orm::Statement::from_string(
+        sea_orm::DatabaseBackend::Sqlite,
+        "PRAGMA foreign_keys = OFF".to_string(),
+    ))
+    .await
+    .unwrap();
     let config = AppConfig::load().unwrap_or_else(|_| {
         serde_json::from_str(r#"
         {
@@ -20,24 +25,35 @@ async fn setup_db() -> AppState {
         }
         "#).unwrap()
     });
-    AppState { db, config }
+    AppState::new(db, config)
 }
 
 #[tokio::test]
 async fn test_auth_register_and_login() {
     let state = setup_db().await;
-    let svc = oak_maillist::services::auth_service::AuthService::new(state.db.clone(), state.config.clone());
+    let svc = oak_maillist::services::auth_service::AuthService::new(
+        state.db.clone(),
+        state.config.clone(),
+    );
 
-    let user = svc.register("test@example.com", "password123", Some("Test User")).await.unwrap();
+    let user = svc
+        .register("test@example.com", "password123", Some("Test User"))
+        .await
+        .unwrap();
     assert_eq!(user.email, "test@example.com");
 
     let logged_in = svc.login("test@example.com", "password123").await.unwrap();
     assert_eq!(logged_in.email, "test@example.com");
 
-    let token = svc.generate_access_token(&user.id.to_string(), &user.email, "subscriber").unwrap();
+    let token = svc
+        .generate_access_token(&user.id.to_string(), &user.email, "subscriber")
+        .unwrap();
     assert!(!token.is_empty());
 
-    let refresh = svc.create_refresh_token(&user.id.to_string(), None).await.unwrap();
+    let refresh = svc
+        .create_refresh_token(&user.id.to_string(), None)
+        .await
+        .unwrap();
     assert!(!refresh.is_empty());
 
     let verified = svc.verify_refresh_token(&refresh).await.unwrap();
@@ -49,9 +65,14 @@ async fn test_auth_register_and_login() {
 #[tokio::test]
 async fn test_auth_login_wrong_password() {
     let state = setup_db().await;
-    let svc = oak_maillist::services::auth_service::AuthService::new(state.db.clone(), state.config.clone());
+    let svc = oak_maillist::services::auth_service::AuthService::new(
+        state.db.clone(),
+        state.config.clone(),
+    );
 
-    svc.register("test2@example.com", "password123", None).await.unwrap();
+    svc.register("test2@example.com", "password123", None)
+        .await
+        .unwrap();
     let result = svc.login("test2@example.com", "wrongpassword").await;
     assert!(result.is_err());
 }
@@ -59,12 +80,24 @@ async fn test_auth_login_wrong_password() {
 #[tokio::test]
 async fn test_mfa_totp_lifecycle() {
     let state = setup_db().await;
-    let auth_svc = oak_maillist::services::auth_service::AuthService::new(state.db.clone(), state.config.clone());
-    let mfa_svc = oak_maillist::services::mfa_service::MfaService::new(state.db.clone(), state.config.clone());
+    let auth_svc = oak_maillist::services::auth_service::AuthService::new(
+        state.db.clone(),
+        state.config.clone(),
+    );
+    let mfa_svc = oak_maillist::services::mfa_service::MfaService::new(
+        state.db.clone(),
+        state.config.clone(),
+    );
 
-    let user = auth_svc.register("totp@example.com", "password123", None).await.unwrap();
+    let user = auth_svc
+        .register("totp@example.com", "password123", None)
+        .await
+        .unwrap();
 
-    let (secret, _qr) = mfa_svc.setup_totp(&user.id.to_string(), "Test").await.unwrap();
+    let (secret, _qr) = mfa_svc
+        .setup_totp(&user.id.to_string(), "Test")
+        .await
+        .unwrap();
     assert!(!secret.is_empty());
 
     let totp = totp_rs::TOTP::new(
@@ -75,20 +108,33 @@ async fn test_mfa_totp_lifecycle() {
         base32_decode(&secret).unwrap(),
         Some("Test".to_string()),
         "totp@example.com".to_string(),
-    ).unwrap();
+    )
+    .unwrap();
     let code = totp.generate_current().unwrap();
 
-    let backups = mfa_svc.verify_totp_setup(&user.id.to_string(), &code).await.unwrap();
+    let backups = mfa_svc
+        .verify_totp_setup(&user.id.to_string(), &code)
+        .await
+        .unwrap();
     assert_eq!(backups.len(), 10);
 
     let new_code = totp.generate_current().unwrap();
-    let valid2 = mfa_svc.verify_totp(&user.id.to_string(), &new_code).await.unwrap();
+    let valid2 = mfa_svc
+        .verify_totp(&user.id.to_string(), &new_code)
+        .await
+        .unwrap();
     assert!(valid2);
 
-    let count = mfa_svc.get_backup_codes_count(&user.id.to_string()).await.unwrap();
+    let count = mfa_svc
+        .get_backup_codes_count(&user.id.to_string())
+        .await
+        .unwrap();
     assert_eq!(count, 10);
 
-    mfa_svc.disable_totp(&user.id.to_string(), &new_code).await.unwrap();
+    mfa_svc
+        .disable_totp(&user.id.to_string(), &new_code)
+        .await
+        .unwrap();
 }
 
 fn base32_decode(input: &str) -> Option<Vec<u8>> {

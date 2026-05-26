@@ -25,6 +25,7 @@ pub struct SecurityConfig {
     pub refresh_token_expiration_days: i64,
     pub session_token_expiration_seconds: i64,
     pub password_min_length: usize,
+    pub webauthn_rp_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

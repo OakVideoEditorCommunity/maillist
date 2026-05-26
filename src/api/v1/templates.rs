@@ -1,10 +1,10 @@
-use crate::models::{email_template, AppState};
+use crate::models::{AppState, email_template};
 use crate::services::template_service::TemplateService;
 use crate::utils::response::{ApiError, ApiResponse, ApiResult};
 use axum::{
+    Json, Router,
     extract::{Path, State},
     routing::{get, post, put},
-    Json, Router,
 };
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
 use tera::Context;
@@ -138,12 +138,15 @@ async fn preview_template(
         }
     }
 
-    let (subject, body) = svc.render_template(&name, &ctx).await.map_err(|e| ApiError {
-        code: "INTERNAL_ERROR".to_string(),
-        message: e.to_string(),
-        details: None,
-        request_id: None,
-    })?;
+    let (subject, body) = svc
+        .render_template(&name, &ctx)
+        .await
+        .map_err(|e| ApiError {
+            code: "INTERNAL_ERROR".to_string(),
+            message: e.to_string(),
+            details: None,
+            request_id: None,
+        })?;
 
     Ok(Json(ApiResponse::new(serde_json::json!({
         "subject": subject,

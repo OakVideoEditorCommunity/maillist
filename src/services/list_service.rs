@@ -117,7 +117,10 @@ impl ListService {
         if let Some(v) = updates.get("digest_enabled").and_then(|v| v.as_bool()) {
             active.digest_enabled = Set(v);
         }
-        if let Some(v) = updates.get("ai_moderation_enabled").and_then(|v| v.as_bool()) {
+        if let Some(v) = updates
+            .get("ai_moderation_enabled")
+            .and_then(|v| v.as_bool())
+        {
             active.ai_moderation_enabled = Set(v);
         }
 

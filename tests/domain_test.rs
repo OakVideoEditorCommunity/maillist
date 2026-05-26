@@ -1,12 +1,17 @@
+use migration::MigratorTrait;
 use oak_maillist::config::AppConfig;
 use oak_maillist::models::AppState;
-use migration::MigratorTrait;
 use sea_orm::{ConnectionTrait, Database};
 
 async fn setup_db() -> AppState {
     let db = Database::connect("sqlite::memory:").await.unwrap();
     migration::Migrator::up(&db, None).await.unwrap();
-    db.execute(sea_orm::Statement::from_string(sea_orm::DatabaseBackend::Sqlite, "PRAGMA foreign_keys = OFF".to_string())).await.unwrap();
+    db.execute(sea_orm::Statement::from_string(
+        sea_orm::DatabaseBackend::Sqlite,
+        "PRAGMA foreign_keys = OFF".to_string(),
+    ))
+    .await
+    .unwrap();
     let config = AppConfig::load().unwrap_or_else(|_| {
         serde_json::from_str(r#"
         {
@@ -20,7 +25,7 @@ async fn setup_db() -> AppState {
         }
         "#).unwrap()
     });
-    AppState { db, config }
+    AppState::new(db, config)
 }
 
 #[tokio::test]
@@ -34,7 +39,13 @@ async fn test_domain_service_crud() {
     let found = svc.find_by_id(&domain.id.to_string()).await.unwrap();
     assert!(found.is_some());
 
-    let updated = svc.update(&domain.id.to_string(), serde_json::json!({"smtp_host": "smtp.example.com"})).await.unwrap();
+    let updated = svc
+        .update(
+            &domain.id.to_string(),
+            serde_json::json!({"smtp_host": "smtp.example.com"}),
+        )
+        .await
+        .unwrap();
     assert_eq!(updated.smtp_host, Some("smtp.example.com".to_string()));
 
     let list = svc.list().await.unwrap();

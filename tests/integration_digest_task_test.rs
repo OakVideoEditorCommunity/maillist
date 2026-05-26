@@ -1,9 +1,9 @@
 mod common;
 use common::setup_db;
-use oak_maillist::tasks::digest::DigestTask;
 use oak_maillist::services::domain_service::DomainService;
 use oak_maillist::services::list_service::ListService;
 use oak_maillist::services::subscriber_service::SubscriberService;
+use oak_maillist::tasks::digest::DigestTask;
 use sea_orm::{ActiveModelTrait, Set};
 
 #[tokio::test]
@@ -20,13 +20,30 @@ async fn test_digest_no_messages() {
     let domain_svc = DomainService::new(state.db.clone());
     let domain = domain_svc.create("dig.com").await.unwrap();
     let list_svc = ListService::new(state.db.clone());
-    let list = list_svc.create(&domain.id.to_string(), "l", "l", None, None).await.unwrap();
+    let list = list_svc
+        .create(&domain.id.to_string(), "l", "l", None, None)
+        .await
+        .unwrap();
     let sub_svc = SubscriberService::new(state.db.clone());
-    
-    let sub = sub_svc.subscribe(&list.id.to_string(), "user@example.com", None, "http://localhost").await.unwrap();
-    sub_svc.confirm(&list.id.to_string(), &sub.token).await.unwrap();
-    sub_svc.update_digest_mode(&sub.id.to_string(), "daily").await.unwrap();
-    
+
+    let sub = sub_svc
+        .subscribe(
+            &list.id.to_string(),
+            "user@example.com",
+            None,
+            "http://localhost",
+        )
+        .await
+        .unwrap();
+    sub_svc
+        .confirm(&list.id.to_string(), &sub.token)
+        .await
+        .unwrap();
+    sub_svc
+        .update_digest_mode(&sub.id.to_string(), "daily")
+        .await
+        .unwrap();
+
     let task = DigestTask::new(state.clone());
     let result = task.run().await;
     assert!(result.is_ok());
@@ -38,13 +55,30 @@ async fn test_digest_skips_when_smtp_not_configured() {
     let domain_svc = DomainService::new(state.db.clone());
     let domain = domain_svc.create("dig2.com").await.unwrap();
     let list_svc = ListService::new(state.db.clone());
-    let list = list_svc.create(&domain.id.to_string(), "l", "l", None, None).await.unwrap();
+    let list = list_svc
+        .create(&domain.id.to_string(), "l", "l", None, None)
+        .await
+        .unwrap();
     let sub_svc = SubscriberService::new(state.db.clone());
-    
-    let sub = sub_svc.subscribe(&list.id.to_string(), "user@example.com", None, "http://localhost").await.unwrap();
-    sub_svc.confirm(&list.id.to_string(), &sub.token).await.unwrap();
-    sub_svc.update_digest_mode(&sub.id.to_string(), "daily").await.unwrap();
-    
+
+    let sub = sub_svc
+        .subscribe(
+            &list.id.to_string(),
+            "user@example.com",
+            None,
+            "http://localhost",
+        )
+        .await
+        .unwrap();
+    sub_svc
+        .confirm(&list.id.to_string(), &sub.token)
+        .await
+        .unwrap();
+    sub_svc
+        .update_digest_mode(&sub.id.to_string(), "daily")
+        .await
+        .unwrap();
+
     let msg = oak_maillist::models::email_message::ActiveModel {
         id: Set(oak_maillist::utils::crypto::generate_uuid()),
         list_id: Set(list.id),
@@ -69,7 +103,7 @@ async fn test_digest_skips_when_smtp_not_configured() {
         deleted_reason: Set(None),
     };
     msg.insert(&state.db).await.unwrap();
-    
+
     let task = DigestTask::new(state.clone());
     let result = task.run().await;
     assert!(result.is_ok());

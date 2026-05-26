@@ -1,8 +1,6 @@
 use crate::models::domain;
 use chrono::Utc;
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set,
-};
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 
 pub struct DomainService {
     db: DatabaseConnection,
@@ -78,9 +76,7 @@ impl DomainService {
 
     pub async fn delete(&self, id: &str) -> anyhow::Result<()> {
         let uuid = uuid::Uuid::parse_str(id)?;
-        domain::Entity::delete_by_id(uuid)
-            .exec(&self.db)
-            .await?;
+        domain::Entity::delete_by_id(uuid).exec(&self.db).await?;
         Ok(())
     }
 }

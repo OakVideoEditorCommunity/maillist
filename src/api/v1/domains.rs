@@ -2,15 +2,18 @@ use crate::models::AppState;
 use crate::services::domain_service::DomainService;
 use crate::utils::response::{ApiError, ApiResponse, ApiResult};
 use axum::{
+    Json, Router,
     extract::{Path, State},
     routing::{delete, get, post, put},
-    Json, Router,
 };
 
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/", get(list_domains).post(create_domain))
-        .route("/{id}", get(get_domain).put(update_domain).delete(delete_domain))
+        .route(
+            "/{id}",
+            get(get_domain).put(update_domain).delete(delete_domain),
+        )
         .route("/{id}/verify-dkim", post(verify_dkim))
 }
 
@@ -41,15 +44,12 @@ async fn create_domain(
     State(state): State<AppState>,
     Json(req): Json<serde_json::Value>,
 ) -> ApiResult<serde_json::Value> {
-    let name = req
-        .get("name")
-        .and_then(|v| v.as_str())
-        .ok_or(ApiError {
-            code: "VALIDATION_ERROR".to_string(),
-            message: "name is required".to_string(),
-            details: None,
-            request_id: None,
-        })?;
+    let name = req.get("name").and_then(|v| v.as_str()).ok_or(ApiError {
+        code: "VALIDATION_ERROR".to_string(),
+        message: "name is required".to_string(),
+        details: None,
+        request_id: None,
+    })?;
 
     let svc = DomainService::new(state.db.clone());
     let domain = svc.create(name).await.map_err(|e| ApiError {

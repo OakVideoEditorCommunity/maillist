@@ -1,3 +1,5 @@
+use crate::models::AppState;
+use crate::services::auth_service::AuthService;
 use axum::{
     extract::{Request, State},
     http::StatusCode,
@@ -5,8 +7,6 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde::{Deserialize, Serialize};
-use crate::models::AppState;
-use crate::services::auth_service::AuthService;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
@@ -90,5 +90,3 @@ pub async fn optional_auth(
 
     next.run(request).await
 }
-
-

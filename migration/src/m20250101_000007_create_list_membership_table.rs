@@ -11,11 +11,25 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(ListMembership::Table)
                     .if_not_exists()
-                    .col(ColumnDef::new(ListMembership::Id).uuid().not_null().primary_key())
+                    .col(
+                        ColumnDef::new(ListMembership::Id)
+                            .uuid()
+                            .not_null()
+                            .primary_key(),
+                    )
                     .col(ColumnDef::new(ListMembership::UserId).uuid().not_null())
                     .col(ColumnDef::new(ListMembership::ListId).uuid().not_null())
-                    .col(ColumnDef::new(ListMembership::Role).string_len(20).not_null().default("subscriber"))
-                    .col(ColumnDef::new(ListMembership::CreatedAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(ListMembership::Role)
+                            .string_len(20)
+                            .not_null()
+                            .default("subscriber"),
+                    )
+                    .col(
+                        ColumnDef::new(ListMembership::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_membership_user")

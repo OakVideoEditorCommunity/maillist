@@ -1,9 +1,9 @@
-use crate::models::{email_message, subscriber, AppState};
+use crate::models::{AppState, email_message, subscriber};
 use chrono::{Duration, Utc};
+use lettre::Transport;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set,
 };
-use lettre::Transport;
 use tracing::{error, info};
 
 pub struct DigestTask {
@@ -41,10 +41,7 @@ impl DigestTask {
         Ok(())
     }
 
-    async fn get_digest_subscribers(
-        &self,
-        mode: &str,
-    ) -> anyhow::Result<Vec<subscriber::Model>> {
+    async fn get_digest_subscribers(&self, mode: &str) -> anyhow::Result<Vec<subscriber::Model>> {
         let subs = subscriber::Entity::find()
             .filter(subscriber::Column::Status.eq("active"))
             .filter(subscriber::Column::DigestMode.eq(mode))
@@ -99,10 +96,7 @@ impl DigestTask {
             let email = lettre::Message::builder()
                 .from(smtp_config.from_address.parse()?)
                 .to(sub.email.parse()?)
-                .subject(format!(
-                    "[摘要] {} 封新邮件",
-                    messages.len()
-                ))
+                .subject(format!("[摘要] {} 封新邮件", messages.len()))
                 .body(digest_body)?;
 
             let creds = lettre::transport::smtp::authentication::Credentials::new(

@@ -75,7 +75,9 @@ struct AliyunResultItem {
 impl AiClient {
     pub fn new(config: AiModerationConfig) -> Self {
         let http = Client::builder()
-            .timeout(std::time::Duration::from_secs(config.request_timeout_seconds))
+            .timeout(std::time::Duration::from_secs(
+                config.request_timeout_seconds,
+            ))
             .build()
             .expect("Failed to build HTTP client");
 
@@ -135,7 +137,10 @@ impl AiClient {
             "Action=TextModerationPlus",
             &[
                 ("host".to_string(), self.endpoint.replace("https://", "")),
-                ("content-type".to_string(), "application/json; charset=utf-8".to_string()),
+                (
+                    "content-type".to_string(),
+                    "application/json; charset=utf-8".to_string(),
+                ),
             ],
             body_bytes,
         );
@@ -163,8 +168,13 @@ impl AiClient {
             ));
         }
 
-        let aliyun_resp: AliyunResponse = serde_json::from_str(&response_text)
-            .map_err(|e| anyhow::anyhow!("Failed to parse Aliyun response: {}. Raw: {}", e, response_text))?;
+        let aliyun_resp: AliyunResponse = serde_json::from_str(&response_text).map_err(|e| {
+            anyhow::anyhow!(
+                "Failed to parse Aliyun response: {}. Raw: {}",
+                e,
+                response_text
+            )
+        })?;
 
         if aliyun_resp.code != 200 {
             return Err(anyhow::anyhow!(
