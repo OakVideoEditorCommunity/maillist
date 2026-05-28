@@ -5,3 +5,5 @@ target/
 Dockerfile
 docker-compose.yml
 .dockerignore
+frontend/node_modules/
+frontend/dist/

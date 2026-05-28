@@ -18,20 +18,41 @@ services:
       retries: 5
 
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "3000:3000"
       - "2525:2525"
     environment:
+      # Database (PostgreSQL via db service)
       OAK__DATABASE__URL: postgres://oak:oak_secret@db:5432/oak_maillist
+      # Server
       OAK__SERVER__BASE_URL: http://localhost:3000
+      # SMTP Incoming
       OAK__SMTP__INCOMING__ENABLED: "true"
-      OAK__SMTP__OUTGOING__HOST: smtp.example.com
-      OAK__SMTP__OUTGOING__PORT: 587
+      OAK__SMTP__INCOMING__HOST: "0.0.0.0"
+      OAK__SMTP__INCOMING__PORT: "2525"
+      # SMTP Outgoing (fill in your own provider)
+      OAK__SMTP__OUTGOING__HOST: ""
+      OAK__SMTP__OUTGOING__PORT: "587"
       OAK__SMTP__OUTGOING__USERNAME: ""
       OAK__SMTP__OUTGOING__PASSWORD: ""
-      OAK__SMTP__OUTGOING__FROM_ADDRESS: noreply@example.com
+      OAK__SMTP__OUTGOING__FROM_ADDRESS: "noreply@example.com"
+      # AI Moderation
       OAK__AI_MODERATION__ENABLED: "false"
+      OAK__AI_MODERATION__PROVIDER: "aliyun"
+      OAK__AI_MODERATION__ACCESS_KEY_ID: ""
+      OAK__AI_MODERATION__ACCESS_KEY_SECRET: ""
+      OAK__AI_MODERATION__REGION: "cn-shanghai"
+      OAK__AI_MODERATION__ENDPOINT: "https://green-cip.cn-shanghai.aliyuncs.com"
+      # Logging
+      OAK__LOGGING__LEVEL: "info"
+      OAK__LOGGING__FORMAT: "json"
+    volumes:
+      # Persist auto-generated config (default.toml) and SQLite DB if used
+      - app_config:/app/config
+      - app_storage:/app/storage/archives
     depends_on:
       db:
         condition: service_healthy
@@ -39,3 +60,5 @@ services:
 
 volumes:
   postgres_data:
+  app_config:
+  app_storage:
