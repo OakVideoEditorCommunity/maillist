@@ -69,8 +69,10 @@ async fn setup_status(State(state): State<AppState>) -> ApiResult<SetupStatusRes
         .unwrap_or(None)
         .is_some();
 
+    let config_exists = crate::config::AppConfig::default_config_path().exists();
+
     Ok(Json(ApiResponse::new(SetupStatusResponse {
-        needs_setup: count == 0 || !has_admin,
+        needs_setup: !config_exists || count == 0 || !has_admin,
         has_admin,
         user_count: count as i64,
     })))
