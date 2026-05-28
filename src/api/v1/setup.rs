@@ -264,7 +264,10 @@ fn build_config_toml(
     let ai_access_key_id = payload.ai_access_key_id.as_deref().unwrap_or("");
     let ai_access_key_secret = payload.ai_access_key_secret.as_deref().unwrap_or("");
     let ai_region = payload.ai_region.as_deref().unwrap_or("cn-shanghai");
-    let ai_endpoint = payload.ai_endpoint.as_deref().unwrap_or("https://green-cip.cn-shanghai.aliyuncs.com");
+    let ai_endpoint = payload
+        .ai_endpoint
+        .as_deref()
+        .unwrap_or("https://green-cip.cn-shanghai.aliyuncs.com");
 
     format!(
         r#"[server]

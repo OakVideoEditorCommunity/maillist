@@ -131,16 +131,10 @@ async fn update_settings(
                 }
             }
             if let Some(v) = ai.get("high_risk_threshold").and_then(|v| v.as_i64()) {
-                table.insert(
-                    "high_risk_threshold".to_string(),
-                    toml::Value::Integer(v),
-                );
+                table.insert("high_risk_threshold".to_string(), toml::Value::Integer(v));
             }
             if let Some(v) = ai.get("medium_risk_threshold").and_then(|v| v.as_i64()) {
-                table.insert(
-                    "medium_risk_threshold".to_string(),
-                    toml::Value::Integer(v),
-                );
+                table.insert("medium_risk_threshold".to_string(), toml::Value::Integer(v));
             }
         }
     }
