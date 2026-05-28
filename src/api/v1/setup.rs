@@ -165,13 +165,19 @@ async fn perform_setup(
             request_id: None,
         })?;
 
+    // Signal the server to reload configuration
+    state
+        .should_reload
+        .store(true, std::sync::atomic::Ordering::SeqCst);
+    state.shutdown.notify_waiters();
+
     Ok(Json(ApiResponse::new(serde_json::json!({
         "id": user.id,
         "email": user.email,
         "name": user.name,
         "is_site_admin": user.is_site_admin,
         "config_path": config_path.to_string_lossy(),
-        "message": "Setup completed. Configuration written. Please restart the server to apply new settings.",
+        "message": "Setup completed. Server is reloading configuration...",
     }))))
 }
 

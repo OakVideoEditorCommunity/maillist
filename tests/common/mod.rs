@@ -22,7 +22,12 @@ pub async fn setup_db() -> AppState {
     .unwrap();
 
     let config = test_config();
-    AppState::new(db, config)
+    AppState::new(
+        db,
+        config,
+        std::sync::Arc::new(tokio::sync::Notify::new()),
+        std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+    )
 }
 
 #[allow(dead_code)]

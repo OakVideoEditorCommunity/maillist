@@ -32,7 +32,12 @@ async fn setup_db() -> AppState {
         )
         .unwrap()
     });
-    AppState::new(db, config)
+    AppState::new(
+        db,
+        config,
+        std::sync::Arc::new(tokio::sync::Notify::new()),
+        std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+    )
 }
 
 fn make_raw_email(to: &str, from: &str, subject: &str, body: &str) -> Vec<u8> {

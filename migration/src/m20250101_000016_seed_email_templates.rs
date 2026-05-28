@@ -1,4 +1,5 @@
 use sea_orm_migration::prelude::*;
+use sea_orm_migration::sea_orm::DatabaseBackend;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -7,7 +8,7 @@ pub struct Migration;
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         let db = manager.get_connection();
-        let now = chrono::Utc::now().to_rfc3339();
+        let backend = db.get_database_backend();
 
         let templates = vec![
             (
@@ -41,17 +42,31 @@ impl MigrationTrait for Migration {
         ];
 
         for (id, name, subject, body_text, body_html) in templates {
+            let id_str = id.to_string();
             let id_hex = id.as_simple().to_string();
-            let sql = format!(
-                "INSERT INTO email_template (id, name, subject, body_text, body_html, is_system, created_at, updated_at)
-                 VALUES (X'{}', '{}', '{}', '{}', '{}', true, '{}', '{}')
-                 ON CONFLICT (name) DO NOTHING",
-                id_hex, name,
-                subject.replace("'", "''"),
-                body_text.replace("'", "''"),
-                body_html.replace("'", "''"),
-                now, now
-            );
+
+            let sql = match backend {
+                DatabaseBackend::Sqlite => format!(
+                    "INSERT INTO email_template (id, name, subject, body_text, body_html, is_system, created_at, updated_at)
+                     SELECT X'{}', '{}', '{}', '{}', '{}', true, datetime('now'), datetime('now')
+                     WHERE NOT EXISTS (SELECT 1 FROM email_template WHERE name = '{}')",
+                    id_hex, name,
+                    subject.replace("'", "''"),
+                    body_text.replace("'", "''"),
+                    body_html.replace("'", "''"),
+                    name,
+                ),
+                _ => format!(
+                    "INSERT INTO email_template (id, name, subject, body_text, body_html, is_system, created_at, updated_at)
+                     SELECT '{}', '{}', '{}', '{}', '{}', true, NOW(), NOW()
+                     WHERE NOT EXISTS (SELECT 1 FROM email_template WHERE name = '{}')",
+                    id_str, name,
+                    subject.replace("'", "''"),
+                    body_text.replace("'", "''"),
+                    body_html.replace("'", "''"),
+                    name,
+                ),
+            };
             db.execute_unprepared(&sql).await?;
         }
 

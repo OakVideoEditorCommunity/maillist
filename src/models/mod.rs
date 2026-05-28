@@ -2,7 +2,8 @@ use crate::config::AppConfig;
 use sea_orm::DatabaseConnection;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use std::sync::atomic::AtomicBool;
+use tokio::sync::{Notify, RwLock};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -10,16 +11,25 @@ pub struct AppState {
     pub config: AppConfig,
     pub webauthn: Option<Arc<webauthn_rs::Webauthn>>,
     pub passkey_challenges: Arc<RwLock<HashMap<String, Vec<u8>>>>,
+    pub shutdown: Arc<Notify>,
+    pub should_reload: Arc<AtomicBool>,
 }
 
 impl AppState {
-    pub fn new(db: DatabaseConnection, config: AppConfig) -> Self {
+    pub fn new(
+        db: DatabaseConnection,
+        config: AppConfig,
+        shutdown: Arc<Notify>,
+        should_reload: Arc<AtomicBool>,
+    ) -> Self {
         let webauthn = Self::build_webauthn(&config);
         Self {
             db,
             config,
             webauthn,
             passkey_challenges: Arc::new(RwLock::new(HashMap::new())),
+            shutdown,
+            should_reload,
         }
     }
 

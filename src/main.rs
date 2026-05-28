@@ -4,18 +4,39 @@ use migration::MigratorTrait;
 use oak_maillist::{api::create_router, config::AppConfig, models};
 use sea_orm::{Database, EntityTrait, PaginatorTrait};
 use std::net::SocketAddr;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::net::TcpListener;
+use tokio::sync::Notify;
 use tracing::{Level, error, info};
 use tracing_subscriber::FmtSubscriber;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    init_tracing(&AppConfig::load()?.logging);
+
+    loop {
+        let should_reload = Arc::new(AtomicBool::new(false));
+
+        let result = run_server(should_reload.clone()).await;
+        match result {
+            Ok(()) => {
+                if should_reload.load(Ordering::SeqCst) {
+                    info!("Configuration updated, reloading...");
+                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                    continue;
+                }
+                break Ok(());
+            }
+            Err(e) => break Err(e),
+        }
+    }
+}
+
+async fn run_server(should_reload: Arc<AtomicBool>) -> Result<()> {
     let config = AppConfig::load()?;
 
-    init_tracing(&config.logging);
-
     info!("Starting Oak MailList v0.1.0");
-    info!("Loaded configuration from: config/default.toml");
 
     let mut opt = sea_orm::ConnectOptions::new(&config.database.url);
     opt.max_connections(config.database.max_connections)
@@ -33,7 +54,9 @@ async fn main() -> Result<()> {
 
     init_admin_from_env(&db, &config).await;
 
-    let app_state = models::AppState::new(db.clone(), config.clone());
+    let shutdown = Arc::new(Notify::new());
+    let app_state =
+        models::AppState::new(db.clone(), config.clone(), shutdown.clone(), should_reload);
     let app = create_router(app_state.clone());
 
     let addr: SocketAddr = format!("{}:{}", config.server.host, config.server.port).parse()?;
@@ -46,26 +69,43 @@ async fn main() -> Result<()> {
             config.smtp.incoming.port,
             app_state.clone(),
         );
+        let smtp_shutdown = shutdown.clone();
         tokio::spawn(async move {
-            if let Err(e) = smtp_server.run().await {
-                error!("SMTP server error: {}", e);
+            tokio::select! {
+                result = smtp_server.run() => {
+                    if let Err(e) = result {
+                        error!("SMTP server error: {}", e);
+                    }
+                }
+                _ = smtp_shutdown.notified() => {}
             }
         });
     }
 
     let digest_state = app_state.clone();
+    let digest_shutdown = shutdown.clone();
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(3600));
         loop {
-            interval.tick().await;
-            let task = oak_maillist::tasks::digest::DigestTask::new(digest_state.clone());
-            if let Err(e) = task.run().await {
-                error!("Digest task error: {}", e);
+            tokio::select! {
+                _ = interval.tick() => {
+                    let task = oak_maillist::tasks::digest::DigestTask::new(digest_state.clone());
+                    if let Err(e) = task.run().await {
+                        error!("Digest task error: {}", e);
+                    }
+                }
+                _ = digest_shutdown.notified() => break,
             }
         }
     });
 
-    serve(listener, app).await?;
+    let shutdown_signal = async move {
+        shutdown.notified().await;
+    };
+
+    serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal)
+        .await?;
 
     Ok(())
 }
