@@ -4,11 +4,11 @@ port = 3000
 base_url = "http://localhost:3000"
 
 [database]
-# mysql or postgres
-url = "postgres://postgres:postgres@localhost:5432/oak_maillist"
-max_connections = 10
-min_connections = 2
-connect_timeout = 10
+# sqlite (default for first-run), postgres, or mysql
+url = "sqlite://./data.db?mode=rwc"
+max_connections = 5
+min_connections = 1
+connect_timeout = 5
 idle_timeout = 300
 
 [security]
