@@ -44,6 +44,12 @@ struct SetupRequest {
     site_name: Option<String>,
     primary_color: Option<String>,
     logo_url: Option<String>,
+    ai_enabled: Option<bool>,
+    ai_provider: Option<String>,
+    ai_access_key_id: Option<String>,
+    ai_access_key_secret: Option<String>,
+    ai_region: Option<String>,
+    ai_endpoint: Option<String>,
     email: String,
     password: String,
     name: Option<String>,
@@ -253,6 +259,12 @@ fn build_config_toml(
     let site_name = payload.site_name.as_deref().unwrap_or("Oak MailList");
     let primary_color = payload.primary_color.as_deref().unwrap_or("#409EFF");
     let logo_url = payload.logo_url.as_deref().unwrap_or("");
+    let ai_enabled = payload.ai_enabled.unwrap_or(false);
+    let ai_provider = payload.ai_provider.as_deref().unwrap_or("aliyun");
+    let ai_access_key_id = payload.ai_access_key_id.as_deref().unwrap_or("");
+    let ai_access_key_secret = payload.ai_access_key_secret.as_deref().unwrap_or("");
+    let ai_region = payload.ai_region.as_deref().unwrap_or("cn-shanghai");
+    let ai_endpoint = payload.ai_endpoint.as_deref().unwrap_or("https://green-cip.cn-shanghai.aliyuncs.com");
 
     format!(
         r#"[server]
@@ -287,13 +299,13 @@ password = "{smtp_password}"
 from_address = "{smtp_from}"
 
 [ai_moderation]
-enabled = false
-provider = "aliyun"
-access_key_id = ""
-access_key_secret = ""
-region = "cn-shanghai"
+enabled = {ai_enabled}
+provider = "{ai_provider}"
+access_key_id = "{ai_access_key_id}"
+access_key_secret = "{ai_access_key_secret}"
+region = "{ai_region}"
 service = "ugc_moderation_byllm"
-endpoint = "https://green-cip.cn-shanghai.aliyuncs.com"
+endpoint = "{ai_endpoint}"
 high_risk_threshold = 80
 medium_risk_threshold = 50
 request_timeout_seconds = 30

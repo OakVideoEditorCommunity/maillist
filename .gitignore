@@ -1,4 +1,4 @@
 /target
 .idea/
 data.db
-config/default.toml
+config
