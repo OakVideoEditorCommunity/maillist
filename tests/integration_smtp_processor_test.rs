@@ -26,7 +26,8 @@ async fn setup_db() -> AppState {
                 "smtp": {"incoming":{"enabled":false,"host":"0.0.0.0","port":2525},"outgoing":{"host":"","port":587,"username":"","password":"","from_address":"test@example.com"}},
                 "ai_moderation": {"enabled":false,"provider":"aliyun","access_key_id":"","access_key_secret":"","region":"cn-shanghai","service":"ugc_moderation_byllm","endpoint":"","high_risk_threshold":80,"medium_risk_threshold":50,"request_timeout_seconds":30,"max_text_length":2000},
                 "archive": {"enabled":true,"storage_path":"./storage/archives","max_attachment_size_mb":10},
-                "logging": {"level":"error","format":"pretty"}
+                "logging": {"level":"error","format":"pretty"},
+            "branding": {"site_name":"Oak MailList","primary_color":"409EFF","logo_url":""}
             }
             "#,
         )

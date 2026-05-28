@@ -84,6 +84,8 @@ anyhow = "1.0"
 once_cell = "1.21"
 regex = "1.11"
 lazy_static = "1.5"
+rust-embed = { version = "8.6", features = ["include-exclude"] }
+mime_guess = "2.0"
 
 # --- SeaORM Migration (runtime dependency) ---
 migration = { path = "migration" }

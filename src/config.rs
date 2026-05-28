@@ -79,6 +79,13 @@ pub struct LoggingConfig {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct BrandingConfig {
+    pub site_name: String,
+    pub primary_color: String,
+    pub logo_url: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct AppConfig {
     pub server: ServerConfig,
     pub database: DatabaseConfig,
@@ -87,6 +94,7 @@ pub struct AppConfig {
     pub ai_moderation: AiModerationConfig,
     pub archive: ArchiveConfig,
     pub logging: LoggingConfig,
+    pub branding: BrandingConfig,
 }
 
 impl AppConfig {

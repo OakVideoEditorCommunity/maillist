@@ -50,3 +50,8 @@ max_attachment_size_mb = 10
 [logging]
 level = "info"
 format = "pretty"
+
+[branding]
+site_name = "Oak MailList"
+primary_color = "#409EFF"
+logo_url = ""

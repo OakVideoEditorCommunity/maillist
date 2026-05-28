@@ -41,6 +41,9 @@ struct SetupRequest {
     smtp_user: Option<String>,
     smtp_password: Option<String>,
     smtp_from: Option<String>,
+    site_name: Option<String>,
+    primary_color: Option<String>,
+    logo_url: Option<String>,
     email: String,
     password: String,
     name: Option<String>,
@@ -245,6 +248,9 @@ fn build_config_toml(
         .smtp_from
         .as_deref()
         .unwrap_or("noreply@example.com");
+    let site_name = payload.site_name.as_deref().unwrap_or("Oak MailList");
+    let primary_color = payload.primary_color.as_deref().unwrap_or("#409EFF");
+    let logo_url = payload.logo_url.as_deref().unwrap_or("");
 
     format!(
         r#"[server]
@@ -299,6 +305,11 @@ max_attachment_size_mb = 10
 [logging]
 level = "info"
 format = "pretty"
+
+[branding]
+site_name = "{site_name}"
+primary_color = "{primary_color}"
+logo_url = "{logo_url}"
 "#
     )
 }
