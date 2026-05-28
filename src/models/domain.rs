@@ -14,6 +14,13 @@ pub struct Model {
     pub smtp_password: Option<String>,
     pub dkim_selector: Option<String>,
     pub dkim_private_key: Option<String>,
+    pub dkim_public_key: Option<String>,
+    pub spf_record: Option<String>,
+    pub dmarc_record: Option<String>,
+    pub spf_verified: bool,
+    pub dkim_verified: bool,
+    pub dmarc_verified: bool,
+    pub dkim_enabled: bool,
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
 }

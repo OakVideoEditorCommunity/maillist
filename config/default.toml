@@ -11,7 +11,7 @@ connect_timeout = 10
 idle_timeout = 300
 
 [security]
-jwt_secret = "p4Kj0EOyIBvXArZcywhvUsiCGaV6uouo0rwKTT0gIYqSeReJgmQRUYNOYMDmVrPx"
+jwt_secret = "4pR0RlFl4ommdn5qcxUE7SAM2Be1iENz1ArRdMxwAV3I1ZtvtMqAfiY02oGurE4S"
 jwt_expiration_seconds = 900
 refresh_token_expiration_days = 7
 session_token_expiration_seconds = 600

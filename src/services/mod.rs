@@ -1,6 +1,8 @@
 pub mod ai_service;
 pub mod archive_service;
 pub mod auth_service;
+pub mod dkim_service;
+pub mod dns_check_service;
 pub mod domain_service;
 pub mod list_service;
 pub mod mail_service;

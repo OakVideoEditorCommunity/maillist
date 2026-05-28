@@ -26,6 +26,13 @@ impl DomainService {
             smtp_password: Set(None),
             dkim_selector: Set(None),
             dkim_private_key: Set(None),
+            dkim_public_key: Set(None),
+            spf_record: Set(None),
+            dmarc_record: Set(None),
+            spf_verified: Set(false),
+            dkim_verified: Set(false),
+            dmarc_verified: Set(false),
+            dkim_enabled: Set(false),
             created_at: Set(Utc::now().into()),
             updated_at: Set(Utc::now().into()),
         };
@@ -69,6 +76,27 @@ impl DomainService {
         }
         if let Some(v) = updates.get("dkim_private_key").and_then(|v| v.as_str()) {
             active.dkim_private_key = Set(Some(v.to_string()));
+        }
+        if let Some(v) = updates.get("dkim_public_key").and_then(|v| v.as_str()) {
+            active.dkim_public_key = Set(Some(v.to_string()));
+        }
+        if let Some(v) = updates.get("spf_record").and_then(|v| v.as_str()) {
+            active.spf_record = Set(Some(v.to_string()));
+        }
+        if let Some(v) = updates.get("dmarc_record").and_then(|v| v.as_str()) {
+            active.dmarc_record = Set(Some(v.to_string()));
+        }
+        if let Some(v) = updates.get("spf_verified").and_then(|v| v.as_bool()) {
+            active.spf_verified = Set(v);
+        }
+        if let Some(v) = updates.get("dkim_verified").and_then(|v| v.as_bool()) {
+            active.dkim_verified = Set(v);
+        }
+        if let Some(v) = updates.get("dmarc_verified").and_then(|v| v.as_bool()) {
+            active.dmarc_verified = Set(v);
+        }
+        if let Some(v) = updates.get("dkim_enabled").and_then(|v| v.as_bool()) {
+            active.dkim_enabled = Set(v);
         }
         active.updated_at = Set(Utc::now().into());
         Ok(active.update(&self.db).await?)

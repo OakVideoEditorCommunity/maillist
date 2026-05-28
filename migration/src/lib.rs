@@ -16,6 +16,7 @@ mod m20250101_000013_create_attachment_table;
 mod m20250101_000014_create_email_template_table;
 mod m20250101_000015_create_bounce_log_table;
 mod m20250101_000016_seed_email_templates;
+mod m20250101_000017_add_domain_dns_fields;
 
 pub struct Migrator;
 
@@ -39,6 +40,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20250101_000014_create_email_template_table::Migration),
             Box::new(m20250101_000015_create_bounce_log_table::Migration),
             Box::new(m20250101_000016_seed_email_templates::Migration),
+            Box::new(m20250101_000017_add_domain_dns_fields::Migration),
         ]
     }
 }

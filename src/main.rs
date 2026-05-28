@@ -103,9 +103,12 @@ async fn run_server(should_reload: Arc<AtomicBool>) -> Result<()> {
         shutdown.notified().await;
     };
 
-    serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal)
-        .await?;
+    serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .with_graceful_shutdown(shutdown_signal)
+    .await?;
 
     Ok(())
 }

@@ -1,6 +1,7 @@
 use crate::config::AppConfig;
-use crate::models::{AppState, email_message, moderation_queue, subscriber};
+use crate::models::{AppState, domain, email_message, mailing_list, moderation_queue, subscriber};
 use crate::services::ai_service::AiService;
+use crate::services::dkim_service::DkimService;
 use crate::smtp::server::IncomingEmail;
 use crate::utils::email::extract_local_part;
 use chrono::Utc;
@@ -189,6 +190,15 @@ impl MailPipeline {
         list_id: &uuid::Uuid,
         message: &email_message::Model,
     ) -> anyhow::Result<()> {
+        let list = mailing_list::Entity::find_by_id(*list_id)
+            .one(&self.db)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("List not found: {}", list_id))?;
+
+        let domain = domain::Entity::find_by_id(list.domain_id)
+            .one(&self.db)
+            .await?;
+
         let subscribers = subscriber::Entity::find()
             .filter(subscriber::Column::ListId.eq(*list_id))
             .filter(subscriber::Column::Status.eq("active"))
@@ -210,7 +220,10 @@ impl MailPipeline {
                 continue;
             }
 
-            if let Err(e) = self.send_to_subscriber(message, &sub.email).await {
+            if let Err(e) = self
+                .send_to_subscriber(message, &sub.email, domain.as_ref())
+                .await
+            {
                 error!("Failed to deliver to {}: {}", sub.email, e);
             }
         }
@@ -222,6 +235,7 @@ impl MailPipeline {
         &self,
         message: &email_message::Model,
         to_email: &str,
+        domain: Option<&domain::Model>,
     ) -> anyhow::Result<()> {
         use lettre::Transport;
         use lettre::message::{Mailbox, Message, header::ContentType};
@@ -233,10 +247,46 @@ impl MailPipeline {
 
         let to = to_email.parse::<Mailbox>()?;
 
-        let email_builder = Message::builder()
-            .from(from)
-            .to(to)
+        let mut email_builder = Message::builder()
+            .from(from.clone())
+            .to(to.clone())
             .subject(message.subject.clone().unwrap_or_default());
+
+        // Add DKIM-Signature header if enabled
+        if let Some(d) = domain {
+            if d.dkim_enabled && d.dkim_private_key.is_some() && d.dkim_selector.is_some() {
+                let headers = vec![
+                    ("from".to_string(), from.to_string()),
+                    ("to".to_string(), to.to_string()),
+                    (
+                        "subject".to_string(),
+                        message.subject.clone().unwrap_or_default(),
+                    ),
+                ];
+                let body = message.body_text.clone().unwrap_or_default();
+                match DkimService::sign_message(
+                    d.dkim_private_key.as_deref().unwrap(),
+                    &d.name,
+                    d.dkim_selector.as_deref().unwrap(),
+                    &headers,
+                    &body,
+                ) {
+                    Ok(sig) => {
+                        let header_name = lettre::message::header::HeaderName::new_from_ascii_str(
+                            "DKIM-Signature",
+                        );
+                        let header_value = lettre::message::header::HeaderValue::new(
+                            header_name,
+                            sig.header_value,
+                        );
+                        email_builder = email_builder.raw_header(header_value);
+                    }
+                    Err(e) => {
+                        warn!("DKIM signing failed for domain {}: {}", d.name, e);
+                    }
+                }
+            }
+        }
 
         let email = if let Some(ref html) = message.body_html {
             email_builder
