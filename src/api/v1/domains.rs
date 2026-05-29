@@ -1,6 +1,8 @@
 use crate::models::AppState;
 use crate::services::{
-    dkim_service::DkimService, dns_check_service::{DnsCheckService, self}, domain_service::DomainService,
+    dkim_service::DkimService,
+    dns_check_service::{self, DnsCheckService},
+    domain_service::DomainService,
 };
 use crate::utils::response::{ApiError, ApiResponse, ApiResult};
 use axum::{
@@ -97,10 +99,7 @@ async fn get_domain(
             request_id: None,
         })?;
 
-    let uses_relay = domain
-        .smtp_host
-        .as_ref()
-        .is_some_and(|h| !h.is_empty());
+    let uses_relay = domain.smtp_host.as_ref().is_some_and(|h| !h.is_empty());
 
     let mut resp = serde_json::json!({
         "id": domain.id,
@@ -293,10 +292,7 @@ async fn generate_dkim(
             request_id: None,
         })?;
 
-    let uses_relay = domain
-        .smtp_host
-        .as_ref()
-        .is_some_and(|h| !h.is_empty());
+    let uses_relay = domain.smtp_host.as_ref().is_some_and(|h| !h.is_empty());
     if uses_relay {
         return Err(ApiError {
             code: "CONFIG_ERROR".to_string(),
@@ -356,10 +352,7 @@ async fn get_dns_records(
             request_id: None,
         })?;
 
-    let uses_relay = domain
-        .smtp_host
-        .as_ref()
-        .is_some_and(|h| !h.is_empty());
+    let uses_relay = domain.smtp_host.as_ref().is_some_and(|h| !h.is_empty());
 
     let dmarc = domain
         .dmarc_record
@@ -416,10 +409,7 @@ async fn verify_dns(
             request_id: None,
         })?;
 
-    let uses_relay = domain
-        .smtp_host
-        .as_ref()
-        .is_some_and(|h| !h.is_empty());
+    let uses_relay = domain.smtp_host.as_ref().is_some_and(|h| !h.is_empty());
 
     let mut result = DnsCheckService::verify_all(
         &domain.name,
