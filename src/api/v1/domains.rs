@@ -545,16 +545,20 @@ async fn test_smtp(
         smtp_password.to_string(),
     );
 
-    let mailer = lettre::SmtpTransport::relay(smtp_host)
-        .map_err(|e| ApiError {
-            code: "SMTP_ERROR".to_string(),
-            message: format!("Invalid SMTP host: {}", e),
-            details: None,
-            request_id: None,
-        })?
-        .port(smtp_port)
-        .credentials(creds)
-        .build();
+    let mailer = if smtp_port == 465 {
+        lettre::SmtpTransport::relay(smtp_host)
+    } else {
+        lettre::SmtpTransport::starttls_relay(smtp_host)
+    }
+    .map_err(|e| ApiError {
+        code: "SMTP_ERROR".to_string(),
+        message: format!("Invalid SMTP host: {}", e),
+        details: None,
+        request_id: None,
+    })?
+    .port(smtp_port)
+    .credentials(creds)
+    .build();
 
     match mailer.send(&email) {
         Ok(_) => Ok(Json(ApiResponse::new(serde_json::json!({
