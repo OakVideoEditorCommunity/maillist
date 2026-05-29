@@ -1,4 +1,5 @@
 use hickory_resolver::{TokioResolver, config::ResolverConfig};
+use std::collections::HashMap;
 
 pub struct DnsCheckService;
 
@@ -23,6 +24,16 @@ pub struct DkimCheckResult {
     pub valid: bool,
     pub record: Option<String>,
     pub message: String,
+    pub parsed: Option<DkimParsedRecord>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct DkimParsedRecord {
+    pub version: String,
+    pub key_type: String,
+    pub public_key: String,
+    pub service_type: Option<String>,
+    pub notes: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -31,6 +42,22 @@ pub struct DmarcCheckResult {
     pub valid: bool,
     pub record: Option<String>,
     pub message: String,
+    pub parsed: Option<DmarcParsedRecord>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct DmarcParsedRecord {
+    pub version: String,
+    pub policy: String,
+    pub subdomain_policy: Option<String>,
+    pub percentage: Option<u8>,
+    pub report_uris_aggregate: Vec<String>,
+    pub report_uris_forensic: Vec<String>,
+    pub dkim_alignment: Option<String>,
+    pub spf_alignment: Option<String>,
+    pub failure_options: Option<String>,
+    pub report_interval: Option<u64>,
+    pub report_format: Option<String>,
 }
 
 impl DnsCheckService {
@@ -102,6 +129,7 @@ impl DnsCheckService {
                         let key_matches = expected_public_key
                             .is_none_or(|expected| txt.contains(&format!("p={}", expected)));
                         let valid = has_key && key_matches;
+                        let parsed = Self::parse_dkim_record(&txt);
                         return Ok(DkimCheckResult {
                             found: true,
                             valid,
@@ -113,6 +141,7 @@ impl DnsCheckService {
                             } else {
                                 "DKIM record found and public key matches".to_string()
                             },
+                            parsed,
                         });
                     }
                 }
@@ -121,6 +150,7 @@ impl DnsCheckService {
                     valid: false,
                     record: None,
                     message: "No DKIM record found".to_string(),
+                    parsed: None,
                 })
             }
             Err(e) => Ok(DkimCheckResult {
@@ -128,6 +158,7 @@ impl DnsCheckService {
                 valid: false,
                 record: None,
                 message: format!("DNS lookup failed: {}", e),
+                parsed: None,
             }),
         }
     }
@@ -142,9 +173,10 @@ impl DnsCheckService {
                 for record in records.iter() {
                     let txt = record.to_string();
                     if txt.contains("v=DMARC1") {
-                        let has_policy = txt.contains("p=none")
-                            || txt.contains("p=quarantine")
-                            || txt.contains("p=reject");
+                        let parsed = Self::parse_dmarc_record(&txt);
+                        let has_policy = parsed.is_some()
+                            && ["none", "quarantine", "reject"]
+                                .contains(&parsed.as_ref().unwrap().policy.as_str());
                         return Ok(DmarcCheckResult {
                             found: true,
                             valid: has_policy,
@@ -154,6 +186,7 @@ impl DnsCheckService {
                             } else {
                                 "DMARC record found but policy is missing or invalid".to_string()
                             },
+                            parsed,
                         });
                     }
                 }
@@ -162,6 +195,7 @@ impl DnsCheckService {
                     valid: false,
                     record: None,
                     message: "No DMARC record found".to_string(),
+                    parsed: None,
                 })
             }
             Err(e) => Ok(DmarcCheckResult {
@@ -169,8 +203,69 @@ impl DnsCheckService {
                 valid: false,
                 record: None,
                 message: format!("DNS lookup failed: {}", e),
+                parsed: None,
             }),
         }
+    }
+
+    fn parse_dmarc_record(record: &str) -> Option<DmarcParsedRecord> {
+        let mut tags: HashMap<String, String> = HashMap::new();
+        for part in record.split(';') {
+            let part = part.trim();
+            if let Some(eq) = part.find('=') {
+                let key = part[..eq].trim().to_lowercase();
+                let value = part[eq + 1..].trim().to_string();
+                tags.insert(key, value);
+            }
+        }
+
+        let version = tags.get("v")?.clone();
+        let policy = tags.get("p")?.clone();
+
+        let parse_uris = |s: &str| {
+            s.split(',')
+                .map(|u| u.trim().to_string())
+                .filter(|u| !u.is_empty())
+                .collect::<Vec<_>>()
+        };
+
+        Some(DmarcParsedRecord {
+            version,
+            policy,
+            subdomain_policy: tags.get("sp").cloned(),
+            percentage: tags.get("pct").and_then(|v| v.parse().ok()),
+            report_uris_aggregate: tags.get("rua").map(|s| parse_uris(s)).unwrap_or_default(),
+            report_uris_forensic: tags.get("ruf").map(|s| parse_uris(s)).unwrap_or_default(),
+            dkim_alignment: tags.get("adkim").cloned(),
+            spf_alignment: tags.get("aspf").cloned(),
+            failure_options: tags.get("fo").cloned(),
+            report_interval: tags.get("ri").and_then(|v| v.parse().ok()),
+            report_format: tags.get("rf").cloned(),
+        })
+    }
+
+    fn parse_dkim_record(record: &str) -> Option<DkimParsedRecord> {
+        let mut tags: HashMap<String, String> = HashMap::new();
+        for part in record.split(';') {
+            let part = part.trim();
+            if let Some(eq) = part.find('=') {
+                let key = part[..eq].trim().to_lowercase();
+                let value = part[eq + 1..].trim().to_string();
+                tags.insert(key, value);
+            }
+        }
+
+        let version = tags.get("v")?.clone();
+        let key_type = tags.get("k")?.clone();
+        let public_key = tags.get("p")?.clone();
+
+        Some(DkimParsedRecord {
+            version,
+            key_type,
+            public_key,
+            service_type: tags.get("t").cloned(),
+            notes: tags.get("n").cloned(),
+        })
     }
 
     pub async fn verify_all(
@@ -187,6 +282,7 @@ impl DnsCheckService {
                 valid: false,
                 record: None,
                 message: "No DKIM selector configured".to_string(),
+                parsed: None,
             }
         };
         let dmarc = Self::verify_dmarc(domain).await?;
