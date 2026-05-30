@@ -4,29 +4,40 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 use tracing::{error, info, warn};
 
+use std::sync::Arc;
+use tokio::sync::RwLock;
+
+#[derive(Clone)]
 pub struct SmtpServer {
     host: String,
     port: u16,
     state: AppState,
-}
-
-#[derive(Debug, Clone)]
-pub struct IncomingEmail {
-    pub from: String,
-    pub to: Vec<String>,
-    pub raw_data: Vec<u8>,
-    pub remote_addr: String,
+    bound_port: Arc<RwLock<Option<u16>>>,
 }
 
 impl SmtpServer {
     pub fn new(host: String, port: u16, state: AppState) -> Self {
-        Self { host, port, state }
+        Self {
+            host,
+            port,
+            state,
+            bound_port: Arc::new(RwLock::new(None)),
+        }
+    }
+
+    pub async fn bound_port(&self) -> Option<u16> {
+        *self.bound_port.read().await
     }
 
     pub async fn run(&self) -> anyhow::Result<()> {
         let addr = format!("{}:{}", self.host, self.port);
         let listener = TcpListener::bind(&addr).await?;
-        info!("SMTP server listening on {}", addr);
+        let local_addr = listener.local_addr()?;
+        {
+            let mut port_guard = self.bound_port.write().await;
+            *port_guard = Some(local_addr.port());
+        }
+        info!("SMTP server listening on {}", local_addr);
 
         loop {
             match listener.accept().await {
@@ -44,6 +55,14 @@ impl SmtpServer {
             }
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct IncomingEmail {
+    pub from: String,
+    pub to: Vec<String>,
+    pub raw_data: Vec<u8>,
+    pub remote_addr: String,
 }
 
 async fn handle_connection(
