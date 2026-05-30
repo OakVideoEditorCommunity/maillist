@@ -75,7 +75,7 @@ async fn list_lists(
     let per_page = params.per_page.unwrap_or(20).min(100);
 
     let (lists, total) = service
-        .list_public(page, per_page)
+        .list_all(page, per_page)
         .await
         .map_err(|e| ApiError {
             code: "INTERNAL_ERROR".to_string(),
@@ -91,9 +91,11 @@ async fn list_lists(
                 "id": l.id,
                 "name": l.name,
                 "display_name": l.display_name,
-                "email": format!("{}@...", l.email_local_part),
+                "email_local_part": l.email_local_part,
                 "description": l.description,
                 "visibility": l.visibility,
+                "post_policy": l.post_policy,
+                "is_active": l.is_active,
                 "created_at": l.created_at,
             })
         })
@@ -169,11 +171,22 @@ async fn get_list(
             request_id: None,
         })?;
 
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+    let domain = crate::models::domain::Entity::find()
+        .filter(crate::models::domain::Column::Id.eq(list.domain_id))
+        .one(&state.db)
+        .await
+        .ok()
+        .flatten();
+    let domain_name = domain.as_ref().map(|d| d.name.as_str()).unwrap_or("domain");
+
     Ok(Json(ApiResponse::new(serde_json::json!({
         "id": list.id,
         "name": list.name,
         "display_name": list.display_name,
         "email_local_part": list.email_local_part,
+        "email": format!("{}@{}", list.email_local_part, domain_name),
+        "domain_name": domain_name,
         "description": list.description,
         "visibility": list.visibility,
         "subscription_policy": list.subscription_policy,

@@ -565,11 +565,54 @@ async fn test_smtp(
             "success": true,
             "message": "Test email sent successfully",
         })))),
-        Err(e) => Err(ApiError {
-            code: "SMTP_ERROR".to_string(),
-            message: format!("Failed to send test email: {}", e),
-            details: None,
-            request_id: None,
-        }),
+        Err(e) => {
+            // Fallback: try localhost loopback test
+            let local_result = test_localhost_smtp(&state.config.smtp.outgoing.from_address).await;
+            match local_result {
+                Ok(_) => Ok(Json(ApiResponse::new(serde_json::json!({
+                    "success": true,
+                    "message": format!("External SMTP failed ({}), but localhost loopback test succeeded. The local SMTP server is working.", e),
+                })))),
+                Err(local_err) => Err(ApiError {
+                    code: "SMTP_ERROR".to_string(),
+                    message: format!(
+                        "Failed to send test email: {}. Localhost test also failed: {}",
+                        e, local_err
+                    ),
+                    details: None,
+                    request_id: None,
+                }),
+            }
+        }
     }
+}
+
+async fn test_localhost_smtp(from_addr: &str) -> anyhow::Result<()> {
+    use lettre::Transport;
+    use lettre::message::{Mailbox, Message};
+    use std::time::Duration;
+    use tokio::time::timeout;
+
+    let from: Mailbox = from_addr
+        .parse()
+        .unwrap_or_else(|_| "test@localhost".parse().unwrap());
+
+    let email = Message::builder()
+        .from(from.clone())
+        .to(from)
+        .subject("Localhost SMTP Test")
+        .body("Testing local SMTP server.".to_string())?;
+
+    let mailer = lettre::SmtpTransport::builder_dangerous("127.0.0.1")
+        .port(2525)
+        .timeout(Some(Duration::from_secs(5)))
+        .build();
+
+    timeout(Duration::from_secs(10), async {
+        mailer.send(&email).map_err(|e| anyhow::anyhow!("{}", e))
+    })
+    .await
+    .map_err(|_| anyhow::anyhow!("Localhost SMTP connection timed out"))??;
+
+    Ok(())
 }

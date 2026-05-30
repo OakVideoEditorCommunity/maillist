@@ -74,6 +74,22 @@ impl ListService {
         Ok((items, total))
     }
 
+    pub async fn list_all(
+        &self,
+        page: u64,
+        per_page: u64,
+    ) -> anyhow::Result<(Vec<mailing_list::Model>, u64)> {
+        let paginator = mailing_list::Entity::find()
+            .filter(mailing_list::Column::IsActive.eq(true))
+            .order_by_desc(mailing_list::Column::CreatedAt)
+            .paginate(&self.db, per_page);
+
+        let items = paginator.fetch_page(page - 1).await?;
+        let total = paginator.num_items().await?;
+
+        Ok((items, total))
+    }
+
     pub async fn update(
         &self,
         id: &str,
